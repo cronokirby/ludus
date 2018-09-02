@@ -1,10 +1,12 @@
 /// Represents the possible errors when decoding a Cart
+#[derive(Debug)]
 pub enum CartReadingError {
     UnrecognisedFormat
 }
 
 /// Represents the type of mirroring present on a cartridge
-enum Mirroring {
+#[derive(Debug)]
+pub enum Mirroring {
     Horizontal,
     Vertical
 }
@@ -12,10 +14,18 @@ enum Mirroring {
 impl Mirroring {
     /// Create a mirroring from a boolean, representing whether or not
     /// the mirroring is vertical.
-    fn from_bool(b: bool) -> Mirroring {
+    pub fn from_bool(b: bool) -> Self {
         match b {
             false => Mirroring::Horizontal,
             true => Mirroring::Vertical
+        }
+    }
+
+    /// Returns true if mirroring is Vertical
+    pub fn is_vertical(&self) -> bool {
+        match self {
+            Horizontal => false,
+            Vertical => true
         }
     }
 }
@@ -25,24 +35,24 @@ impl Mirroring {
 /// which is why they're stored in Vecs.
 pub struct Cart {
     /// Represents the PRG ROM, in multiple 16KB chunks
-    prg: Vec<u8>,
+    pub prg: Vec<u8>,
     /// Represents the CHR ROM, in multiple 8KB chunks
-    chr: Vec<u8>,
+    pub chr: Vec<u8>,
     /// The SRAM, always 8KB
-    sram: [u8; 0x2000],
+    pub sram: [u8; 0x2000],
     /// The ID of the Mapper this cart uses
-    mapper: u8,
+    pub mapper: u8,
     /// What type of mirroring is used in this cart
-    mirroring: Mirroring,
+    pub mirroring: Mirroring,
     /// Indicates whether or not a battery backed RAM is present
-    has_battery: bool
+    pub has_battery: bool
 }
 
 impl Cart {
     /// Reads a buffer of bytes into a Cart,
     /// detecting and parsing the format automatically.
     pub fn from_bytes(buffer: &[u8]) -> Result<Cart, CartReadingError> {
-        if buffer[0..3] == [0x4E, 0x45, 0x53, 0x1A] {
+        if buffer[0..4] == [0x4E, 0x45, 0x53, 0x1A] {
             Ok(Cart::from_ines(buffer))
         } else {
             Err(CartReadingError::UnrecognisedFormat)
