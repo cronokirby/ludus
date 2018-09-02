@@ -74,7 +74,7 @@ impl Cart {
             prg: buffer[prg_start..prg_end].to_vec(),
             chr: buffer[prg_end..chr_end].to_vec(),
             sram: [0; 0x2000],
-            mapper: ((flag6 & 0xF0) >> 4) | (flag7 & 0xF0),
+            mapper: (flag6 >> 4) | (flag7 & 0xF0),
             mirroring: Mirroring::from_bool(flag6 & 0b1 > 0),
             has_battery: flag6 & 0b10 > 0
         }
