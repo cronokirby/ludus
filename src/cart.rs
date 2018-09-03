@@ -24,8 +24,8 @@ impl Mirroring {
     /// Returns true if mirroring is Vertical
     pub fn is_vertical(&self) -> bool {
         match self {
-            Horizontal => false,
-            Vertical => true
+            Mirroring::Horizontal => false,
+            Mirroring::Vertical => true
         }
     }
 }

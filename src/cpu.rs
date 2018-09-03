@@ -1,5 +1,5 @@
 // The various addressing modes of each opcode
-const opModes: [u8; 256] = [
+const OP_MODES: [u8; 256] = [
     6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
     10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
     1, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
@@ -19,7 +19,7 @@ const opModes: [u8; 256] = [
 ];
 
 // The various names of each opcode
-const opNames: [&'static str; 256] = [
+const OP_NAMES: [&'static str; 256] = [
     "BRK", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
     "PHP", "ORA", "ASL", "ANC", "NOP", "ORA", "ASL", "SLO",
     "BPL", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
@@ -56,6 +56,7 @@ const opNames: [&'static str; 256] = [
 
 
 /// Represents the type of addressing an op uses
+#[derive(Clone, Copy)]
 enum Addressing {
     Absolute,
     AbsoluteX,
@@ -84,18 +85,27 @@ impl Addressing {
             Relative,
             ZeroPage, ZeroPageX, ZeroPageY
         ];
-        modes[mode as usize]
+        modes[mode as usize - 1]
     }
 }
 
 
-pub fn disasm(buf: &[u8]) {
+pub fn disassemble(in_buf: &[u8]) {
+    // we read in the buffer to be able to append the first 2 bytes at the end
+    // to simulate wrapped reading. 2 is sufficient because 3 is the largest
+    // op size
+    let mut buf: Vec<u8> = in_buf.iter().cloned().collect();
+    let a = buf[0].clone();
+    let b = buf[1].clone();
+    buf.push(a);
+    buf.push(b);
     let mut pc = 0;
-    while pc < buf.len() {
+    let len = buf.len();
+    while pc < len {
         let opcode = buf[pc] as usize;
-        let op = opNames[opcode];
-        let addressing = opModes[opcode];
-        match addressing {
+        let op = OP_NAMES[opcode];
+        let addressing = OP_MODES[opcode];
+        match Addressing::from_byte(addressing) {
             Addressing::Absolute => {
                 pc += 1;
                 let lo = buf[pc];
@@ -159,5 +169,6 @@ pub fn disasm(buf: &[u8]) {
                 println!("{} ${:02X},Y", op, buf[pc]);
             }
         }
+        pc += 1;
     }
 }
