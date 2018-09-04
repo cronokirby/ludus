@@ -90,6 +90,13 @@ impl Addressing {
 }
 
 
+/// Represents the CPU
+pub struct CPU {
+    // Empty until we fill this with information
+}
+
+
+
 pub fn disassemble(in_buf: &[u8]) {
     // we read in the buffer to be able to append the first 2 bytes at the end
     // to simulate wrapped reading. 2 is sufficient because 3 is the largest
