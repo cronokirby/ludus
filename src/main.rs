@@ -1,8 +1,6 @@
 extern crate argparse;
 extern crate ludus;
 
-use std::fs::File;
-use std::io::Read;
 use argparse::{ArgumentParser, StoreTrue, Store};
 
 
