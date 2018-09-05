@@ -90,15 +90,95 @@ impl Addressing {
 }
 
 
+/// Represents the different types of Interrupts the CPU might deal with
+enum Interrupt {
+    NMI,
+    IRQ
+}
+
+
+/// Represents possible CPU interrupts
 /// Represents the CPU
 pub struct CPU {
-    // Empty until we fill this with information
+    /// Program counter
+    pc: u16,
+    /// Stack pointer
+    sp: u8,
+    /// Accumulator Register
+    a: u8,
+    /// X Register
+    x: u8,
+    /// Y Register
+    y: u8,
+    // Flags are represented as multiple bytes for more conveniant use
+    // bools could be used instead, but bytes make for better arithmetic
+    /// Carry Flag
+    c: u8,
+    /// Zero Flag
+    z: u8,
+    /// Interrupt disable Flag
+    i: u8,
+    /// Decimal mode Flag
+    d: u8,
+    /// Break command Flag
+    b: u8,
+    /// Unused Flag
+    u: u8,
+    /// Overflow Flag
+    v: u8,
+    /// Negative Flag
+    n: u8,
+    // Interrupts are set to be handled on the next CPU step
+    /// Represents the presence of an Interrupt needing to be handled
+    interrupt: Option<Interrupt>,
+    /// Used to request the CPU stall, mainly for timing purposes
+    stall: i32
 }
 
 impl CPU {
     /// Creates a new CPU
-    pub fn new() -> Self {
-        CPU {}
+    /// `reset` should be called if doing this at initialisation of console,
+    ///  but cannot be done inside this function, since RAM isn't live.
+    pub fn zeroed() -> Self {
+        let pc = 0;
+        let sp = 0;
+        let a = 0;
+        let x = 0;
+        let y = 0;
+        let c = 0;
+        let z = 0;
+        let i = 0;
+        let d = 0;
+        let b = 0;
+        let u = 0;
+        let v = 0;
+        let n = 0;
+        let interrupt = None;
+        let stall = 0;
+        let cpu = CPU {
+            pc, sp, a, x, y, c, z, i, d, b, u, v, n,
+            interrupt, stall
+        };
+        cpu
+    }
+
+    /// Resets the CPU to its initial powerup state.
+    pub fn reset(&mut self) {
+        // TODO: set pc to 16bit at 0xFFFC
+        self.sp = 0xFD;
+        self.set_flags(0x24);
+
+    }
+
+    fn set_flags(&mut self, flags: u8) {
+        self.c = (flags >> 0) & 1;
+        self.z = (flags >> 1) & 1;
+        self.i = (flags >> 2) & 1;
+        self.d = (flags >> 3) & 1;
+        self.b = (flags >> 4) & 1;
+        self.u = (flags >> 5) & 1;
+        self.v = (flags >> 6) & 1;
+        self.n = (flags >> 7) & 1;
     }
 }
 

@@ -13,7 +13,7 @@ pub struct Console {
 
 impl Console {
     pub fn new(rom_buffer: &[u8]) -> Result<Self, CartReadingError> {
-        let cpu = CPU::new();
+        let cpu = CPU::zeroed();
         let ram = [0; 0x2000];
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
