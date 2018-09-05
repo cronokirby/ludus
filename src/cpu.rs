@@ -1,3 +1,6 @@
+use super::memory::MemoryBus;
+
+
 // The various addressing modes of each opcode
 const OP_MODES: [u8; 256] = [
     6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
@@ -163,11 +166,18 @@ impl CPU {
     }
 
     /// Resets the CPU to its initial powerup state.
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, mem: &MemoryBus) {
         // TODO: set pc to 16bit at 0xFFFC
+        self.pc = self.read16(0xFFFC, mem);
         self.sp = 0xFD;
         self.set_flags(0x24);
 
+    }
+
+    fn read16(&self, address: u16, mem: &MemoryBus) -> u16 {
+        let lo = mem.cpu_read(address) as u16;
+        let hi = mem.cpu_read(address + 1) as u16;
+        (hi << 8) | lo
     }
 
     fn set_flags(&mut self, flags: u8) {

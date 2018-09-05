@@ -28,6 +28,7 @@ pub struct MemoryBus {
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
     mapper: Box<Mapper>,
+    ram: [u8; 0x2000]
 }
 
 impl MemoryBus {
@@ -36,7 +37,28 @@ impl MemoryBus {
     pub fn with_rom(buffer: &[u8]) -> Result<Self, CartReadingError> {
         let cart_res = Cart::from_bytes(buffer);
         cart_res.and_then(|cart| Mapper::with_cart(cart).map(|mapper| {
-            MemoryBus { mapper }
+            MemoryBus { mapper, ram: [0; 0x2000] }
         }))
+    }
+
+    pub fn cpu_read(&self, address: u16) -> u8 {
+        match address {
+            a if a < 0x2000 => self.ram[a as usize],
+            a if a < 0x4016 => {
+                panic!("Unimplemented PPU read at {:X}", a);
+            }
+            0x4016 => {
+                panic!("Unimplemented Controller1 Read");
+            }
+            0x4017 => {
+                panic!("Unimplemented Controller2 Read");
+            }
+            a if a >= 0x6000 => {
+                self.mapper.read(address)
+            }
+            a => {
+                panic!("Unhandled CPU read at {:X}", a);
+            }
+        }
     }
 }

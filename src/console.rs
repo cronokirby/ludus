@@ -18,6 +18,11 @@ impl Console {
         let ram = [0; 0x2000];
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
-        mem_res.map(|memory| Console { cpu, memory, ram })
+        mem_res.map(|memory| {
+            let mut console = Console { cpu, memory, ram };
+            // this is done now because we need ram to be available
+            console.cpu.reset(&console.memory);
+            console
+        })
     }
 }
