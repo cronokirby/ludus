@@ -95,6 +95,13 @@ pub struct CPU {
     // Empty until we fill this with information
 }
 
+impl CPU {
+    /// Creates a new CPU
+    pub fn new() -> Self {
+        CPU {}
+    }
+}
+
 
 
 pub fn disassemble(in_buf: &[u8]) {

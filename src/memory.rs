@@ -1,4 +1,4 @@
-use super::cart::Cart;
+use super::cart::{Cart, CartReadingError};
 
 
 /// Used to abstract over the different types of Mappers
@@ -14,5 +14,12 @@ pub struct MemoryBus {
     /// Contains the mapper logic for interfacing with the cart
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
-    mapper: Box<Mapper>,
+    //mapper: Box<Mapper>,
+}
+
+impl MemoryBus {
+    pub fn with_rom(buffer: &[u8]) -> Result<Self, CartReadingError> {
+        let cart_res = Cart::from_bytes(buffer);
+        cart_res.map(|cart| MemoryBus { cart })
+    }
 }
