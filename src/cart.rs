@@ -1,7 +1,8 @@
 /// Represents the possible errors when decoding a Cart
 #[derive(Debug)]
 pub enum CartReadingError {
-    UnrecognisedFormat
+    UnrecognisedFormat,
+    UnknownMapper(u8)
 }
 
 /// Represents the type of mirroring present on a cartridge
