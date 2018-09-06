@@ -23,4 +23,16 @@ impl Console {
             Console { cpu }
         })
     }
+
+    pub fn step(&mut self) {
+        self.cpu.step();
+    }
+
+    /// Steps the console forward printing debug information
+    pub fn debug_step(&mut self) {
+        self.cpu.print_current_op();
+        print!(" -> ");
+        self.cpu.step();
+        self.cpu.print_state();
+    }
 }

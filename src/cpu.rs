@@ -24,6 +24,56 @@ const OP_MODES: [u8; 256] = [
     10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2
 ];
 
+// The size of each instruction in bytes
+// we sacrifice space to avoid casting
+const OP_SIZES: [u16; 256] = [
+    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 0, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 0, 3, 0, 0,
+    2, 2, 2, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0
+];
+
+// How many cycles each instruction takes
+const OP_CYCLES: [i32; 256] = [
+    7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+    2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+    2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7
+];
+
+// The op codes which add a cycle when crossing pages accessing memory
+// doesn't include branch instructions, since the page crossing check
+// happens when the branch is known to be successful or not
+const EXTRA_PAGECYCLE_OPS: [u8; 23] = [
+    0x7D, 0x79, 0x71, 0x3D, 0x39, 0x31, 0xDD, 0xD9, 0xD1,
+    0x5D, 0x59, 0x51, 0xBD, 0xB9, 0xB1, 0xBE, 0xBC,
+    0x1D, 0x19, 0x11, 0xFD, 0xF9, 0xF1
+];
+
 // The various names of each opcode
 const OP_NAMES: [&'static str; 256] = [
     "BRK", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
@@ -103,6 +153,12 @@ enum Interrupt {
 }
 
 
+/// Returns true if two addresses return different pages
+fn pages_differ(a: u16, b: u16) -> bool {
+    a & 0xFF00 != b & 0xFF
+}
+
+
 /// Represents possible CPU interrupts
 /// Represents the CPU
 pub struct CPU {
@@ -173,7 +229,8 @@ impl CPU {
 
     /// Resets the CPU to its initial powerup state.
     pub fn reset(&mut self) {
-        self.pc = self.read16(0xFFFC);
+        self.pc = self.read16(0xFFFC) + 0x8000;
+        println!("PC initialised to {:X}", self.pc);
         self.sp = 0xFD;
         self.set_flags(0x24);
     }
@@ -198,63 +255,165 @@ impl CPU {
         let hi = self.read(address + 1) as u16;
         (hi << 8) | lo
     }
+
+    /// Emulates a software bug where only the lower bit wraps around
+    fn read16bug(&self, a: u16) -> u16 {
+        let b = (a & 0xFF00) | ((a + 1) & 0xFF);
+        let lo = self.read(a) as u16;
+        let hi = self.read(b) as u16;
+        (hi << 8) | lo
+    }
+
+    /// Prints the upcoming operation
+    pub fn print_current_op(&self) {
+        let opcode = self.read(self.pc);
+        let lo = self.read(self.pc + 1);
+        let hi = self.read(self.pc + 2);
+        print!("{:X} ", self.pc);
+        print_op(opcode, lo, hi);
+    }
+
+    /// Prints the current state of the CPU
+    pub fn print_state(&self) {
+        println!("A: {:X} X: {:X} Y: {:X} SP: {:X}",
+            self.a, self.x, self.y, self.sp);
+    }
+
+    /// Steps the cpu forward by a single instruction
+    /// Returns the number of cycles passed
+    pub fn step(&mut self) -> i32 {
+        // Stall for a single cycle if stall cycles are still done
+        if self.stall > 0 {
+            self.stall -= 1;
+            return 1;
+        }
+        let mut cycles = 0;
+        let opcode = self.read(self.pc);
+        // We now fetch the adress based on what type of addressing the
+        // opcode requires, and set the page crossed, in order to
+        // increment the cycles if necessary.
+        let mut page_crossed = false;
+        let address = match Addressing::from_byte(OP_MODES[opcode as usize]) {
+            Addressing::Absolute => self.read16(self.pc + 1),
+            Addressing::AbsoluteX => {
+                let read = self.read16(self.pc + 1);
+                let address = read + self.x as u16;
+                page_crossed = pages_differ(read, address);
+                address
+            }
+            Addressing::AbsoluteY => {
+                let read = self.read16(self.pc + 1);
+                let address = read + self.y as u16;
+                page_crossed = pages_differ(read, address);
+                address
+            }
+            Addressing::Accumulator => 0,
+            Addressing::Immediate => self.pc + 1,
+            Addressing::Implied => 0,
+            Addressing::IndexedIndirect => {
+                let added = self.read(self.pc + 1).wrapping_add(self.x);
+                self.read16bug(added as u16)
+            }
+            Addressing::Indirect => self.read16bug(self.read16(self.pc + 1)),
+            Addressing::IndirectIndexed => {
+                let added = self.read(self.pc + 1).wrapping_add(self.y);
+                let address = self.read16bug(added as u16);
+                let old_addr = address - (self.y as u16);
+                page_crossed = pages_differ(address, old_addr);
+                address
+            }
+            Addressing::Relative => {
+                let offset = self.read(self.pc + 1) as u16;
+                // treating this as a signed integer
+                if offset < 0x80 {
+                    self.pc + 2 + offset
+                } else {
+                    self.pc + 2 + offset - 0x100
+                }
+            }
+            Addressing::ZeroPage => self.read(self.pc + 1) as u16,
+            Addressing::ZeroPageX => {
+                let added = self.read(self.pc + 1).wrapping_add(self.x);
+                // we don't need to & 0xFF here, since added is a byte
+                added as u16
+            }
+            Addressing::ZeroPageY => {
+                let added = self.read(self.pc + 1).wrapping_add(self.y);
+                added as u16
+            }
+        };
+
+
+        self.pc += OP_SIZES[opcode as usize];
+        cycles += OP_CYCLES[opcode as usize];
+        if page_crossed && EXTRA_PAGECYCLE_OPS.contains(&opcode) {
+            cycles += 1;
+        }
+        // todo, actually emulate
+        match opcode {
+            _ => panic!("Unimplented Op {:02X}", opcode)
+        }
+        cycles
+    }
 }
 
 
-fn print_op(pc: &mut u16, opcode: u8,
-            addressing: Addressing, lo: u8, hi: u8)
-{
+// prints an operation returning the number of cycles
+fn print_op(opcode: u8, lo: u8, hi: u8) -> u16 {
     let op = OP_NAMES[opcode as usize];
+    let addressing = Addressing::from_byte(OP_MODES[opcode as usize]);
     match addressing {
         Addressing::Absolute => {
-            *pc += 2;
             print!("{} ${:02X}{:02X}", op, hi, lo);
+            2
         }
         Addressing::AbsoluteX => {
-            *pc += 2;
             print!("{} ${:02X}{:02X}", op, hi, lo);
+            2
         }
         Addressing::AbsoluteY => {
-            *pc += 2;
             print!("{} ${:02X}{:02X}", op, hi, lo);
+            2
         }
         Addressing::Accumulator => {
             print!("{} A", op);
+            0
         }
         Addressing::Immediate => {
-            *pc += 1;
             print!("{} #${:02X}", op, lo);
+            1
         }
         Addressing::Implied => {
             print!("{}", op);
+            0
         }
         Addressing::IndexedIndirect => {
-            *pc += 1;
             print!("{} (${:02X},X)", op, lo);
+            1
         }
         Addressing::Indirect => {
-            *pc += 2;
-            print!("{} (${:02X}{:02X})", op, hi, lo)
+            print!("{} (${:02X}{:02X})", op, hi, lo);
+            2
         }
         Addressing::IndirectIndexed => {
-            *pc += 1;
             print!("{} (${:02X}),Y", op, lo);
+            1
         }
         Addressing::Relative => {
-            *pc += 1;
             print!("{} *+{:02X}", op, lo);
+            1
         }
         Addressing::ZeroPage => {
-            *pc += 1;
             print!("{} ${:02X}", op, lo);
+            1
         }
         Addressing::ZeroPageX => {
-            *pc += 1;
             print!("{} ${:02X},X", op, lo);
+            1
         }
         Addressing::ZeroPageY => {
-            *pc += 1;
             print!("{} ${:02X},Y", op, lo);
+            1
         }
     }
 }
@@ -272,11 +431,8 @@ pub fn disassemble(in_buf: &[u8]) {
     let mut pc = 0;
     while (pc as usize) < len {
         let pcu = pc as usize;
-        let opcode = buf[pcu] as usize;
-        let op = OP_NAMES[opcode];
-        let addressing = Addressing::from_byte(OP_MODES[opcode]);
-        print_op(&mut pc, buf[pcu], addressing, buf[pcu + 1], buf[pcu + 2]);
-        println!("");
+        pc += print_op(buf[pcu], buf[pcu + 1], buf[pcu + 2]);
         pc += 1;
+        println!("");
     }
 }
