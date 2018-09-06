@@ -493,6 +493,8 @@ impl CPU {
             0x60 => self.pc = self.pull16() + 1,
             // SEC
             0x38 => self.c = 1,
+            // SEI
+            0x78 => self.i = 1,
             // STA
             0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                 let a = self.a;
