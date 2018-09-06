@@ -425,6 +425,13 @@ impl CPU {
                     cycles += branch_cycles(pc, address);
                 }
             }
+            // BIT
+            0x24 | 0x2C => {
+               let value = self.read(address);
+               self.v = (value >> 6) & 1;
+               self.set_z(value & self.a);
+               self.set_n(value);
+            }
             // BNE
             0xD0 => {
                 if self.z == 0 {
