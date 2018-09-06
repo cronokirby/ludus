@@ -489,6 +489,8 @@ impl CPU {
             }
             // NOP
             0xEA => {},
+            // RTS
+            0x60 => self.pc = self.pull16() + 1,
             // SEC
             0x38 => self.c = 1,
             // STA
