@@ -329,6 +329,10 @@ impl CPU {
         self.set_n(r);
     }
 
+    fn php(&mut self) {
+        self.push(self.get_flags() | 0x10);
+    }
+
     /// Steps the cpu forward by a single instruction
     /// Returns the number of cycles passed
     pub fn step(&mut self) -> i32 {
@@ -489,6 +493,8 @@ impl CPU {
             }
             // NOP
             0xEA => {},
+            // PHP
+            0x08 => self.php(),
             // RTS
             0x60 => self.pc = self.pull16() + 1,
             // SEC
