@@ -523,6 +523,11 @@ impl CPU {
                 self.a = a;
                 self.set_zn(a);
             }
+            // PHA
+            0x48 => {
+                let a = self.a;
+                self.push(a);
+            }
             // PHP
             0x08 => self.php(),
             // RTS
