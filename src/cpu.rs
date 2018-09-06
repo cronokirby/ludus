@@ -493,6 +493,8 @@ impl CPU {
             0x60 => self.pc = self.pull16() + 1,
             // SEC
             0x38 => self.c = 1,
+            // SED
+            0xF8 => self.d = 1,
             // SEI
             0x78 => self.i = 1,
             // STA

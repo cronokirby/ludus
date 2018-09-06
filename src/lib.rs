@@ -23,7 +23,8 @@ pub fn disassemble(rom_name: &str) {
 }
 
 enum Interaction {
-    Advance
+    Advance,
+    Run
 }
 
 /// Gets an interaction by reading a line
@@ -36,6 +37,7 @@ fn get_interaction() -> Option<Interaction> {
             let s = input.trim();
             match s {
                 "" => Some(Interaction::Advance),
+                "run" => Some(Interaction::Run),
                 _ => None
             }
         }
@@ -57,12 +59,19 @@ pub fn debug(rom_name: &str) {
             }
         }
     });
+    let mut run = false;
     loop {
+        // just loop steps forever
+        if run {
+            console.debug_step();
+            continue;
+        }
         match get_interaction() {
             None => println!("Unknown command"),
             Some(Interaction::Advance) => {
                 console.debug_step();
             }
+            Some(Interaction::Run) => run = true
         }
     }
 }
