@@ -528,6 +528,7 @@ impl CPU {
             // ORA
             0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => {
                 let a = self.a | self.read(address);
+                self.a = a;
                 self.set_zn(a);
             }
             // PLA
