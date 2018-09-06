@@ -334,6 +334,15 @@ impl CPU {
         self.push(flags | 0x10);
     }
 
+    fn compare(&mut self, a: u8, b: u8) {
+        self.set_zn(a.wrapping_sub(b));
+        if a >= b {
+            self.c = 1;
+        } else {
+            self.c = 0;
+        };
+    }
+
     /// Steps the cpu forward by a single instruction
     /// Returns the number of cycles passed
     pub fn step(&mut self) -> i32 {
@@ -478,6 +487,12 @@ impl CPU {
             }
             // CLC
             0x18 => self.c = 0,
+            // CMP
+            0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
+                let value = self.read(address);
+                let a = self.a;
+                self.compare(a, value);
+            }
             // JMP
             0x4C | 0x6C => self.pc = address,
             // JSR
