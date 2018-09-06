@@ -1,5 +1,8 @@
 use super::memory::MemoryBus;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 
 // The various addressing modes of each opcode
 const OP_MODES: [u8; 256] = [
@@ -135,14 +138,16 @@ pub struct CPU {
     /// Represents the presence of an Interrupt needing to be handled
     interrupt: Option<Interrupt>,
     /// Used to request the CPU stall, mainly for timing purposes
-    stall: i32
+    stall: i32,
+    /// Shared acess to the memory bus along with the ppu,
+    mem: Rc<RefCell<MemoryBus>>
 }
 
 impl CPU {
     /// Creates a new CPU
     /// `reset` should be called if doing this at initialisation of console,
     ///  but cannot be done inside this function, since RAM isn't live.
-    pub fn zeroed() -> Self {
+    pub fn zeroed(mem: Rc<RefCell<MemoryBus>>) -> Self {
         let pc = 0;
         let sp = 0;
         let a = 0;
@@ -158,25 +163,28 @@ impl CPU {
         let n = 0;
         let interrupt = None;
         let stall = 0;
-        let cpu = CPU {
+        let mut cpu = CPU {
             pc, sp, a, x, y, c, z, i, d, b, u, v, n,
-            interrupt, stall
+            interrupt, stall, mem
         };
+        cpu.reset();
         cpu
     }
 
     /// Resets the CPU to its initial powerup state.
-    pub fn reset(&mut self, mem: &MemoryBus) {
-        // TODO: set pc to 16bit at 0xFFFC
-        self.pc = self.read16(0xFFFC, mem);
+    pub fn reset(&mut self) {
+        self.pc = self.read16(0xFFFC);
         self.sp = 0xFD;
         self.set_flags(0x24);
-
     }
 
-    fn read16(&self, address: u16, mem: &MemoryBus) -> u16 {
-        let lo = mem.cpu_read(address) as u16;
-        let hi = mem.cpu_read(address + 1) as u16;
+    fn read(&self, address: u16) -> u8 {
+        self.mem.borrow().cpu_read(address)
+    }
+
+    fn read16(&self, address: u16) -> u16 {
+        let lo = self.read(address) as u16;
+        let hi = self.read(address + 1) as u16;
         (hi << 8) | lo
     }
 
