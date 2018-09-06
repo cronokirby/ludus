@@ -250,6 +250,19 @@ impl CPU {
         self.n = (flags >> 7) & 1;
     }
 
+    fn get_flags(&self) -> u8 {
+        let mut r = 0;
+        r |= self.c << 0;
+        r |= self.z << 1;
+        r |= self.i << 2;
+        r |= self.d << 3;
+        r |= self.b << 4;
+        r |= self.u << 5;
+        r |= self.v << 6;
+        r |= self.n << 7;
+        r
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         self.mem.borrow().cpu_read(address)
     }
@@ -305,7 +318,7 @@ impl CPU {
     }
 
     fn set_n(&mut self, r: u8) {
-        self.z = match r & 0x80 {
+        self.n = match r & 0x80 {
             0 => 1,
             _ => 0
         }
@@ -406,7 +419,7 @@ impl CPU {
             }
             // BEQ
             0xF0 => {
-                if cpu.z != 0 {
+                if self.z != 0 {
                     let pc = self.pc;
                     self.pc = address;
                     cycles += branch_cycles(pc, address);
@@ -460,8 +473,8 @@ impl CPU {
 
     /// Prints the current state of the CPU
     pub fn print_state(&self) {
-        println!("A: {:X} X: {:X} Y: {:X} SP: {:X}",
-            self.a, self.x, self.y, self.sp);
+        println!("A: {:X} X: {:X} Y: {:X} F: {:X} SP: {:X}",
+            self.a, self.x, self.y, self.get_flags(), self.sp);
     }
 }
 
