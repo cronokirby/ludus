@@ -267,6 +267,30 @@ impl CPU {
         self.mem.borrow_mut().cpu_write(address, value);
     }
 
+    fn push(&mut self, value: u8) {
+        let sp = self.sp as u16;
+        self.write(0x100 | sp, value);
+        self.sp -= 1;
+    }
+
+    fn push16(&mut self, value: u16) {
+        let hi = (value >> 8) as u8;
+        let lo = (value & 0xFF) as u8;
+        self.push(hi);
+        self.push(lo);
+    }
+
+    fn pull(&mut self) -> u8 {
+        self.sp += 1;
+        let sp = self.sp as u16;
+        self.read(0x100 | sp)
+    }
+
+    fn pull16(&mut self) -> u16 {
+        let lo = self.pull() as u16;
+        let hi = self.pull() as u16;
+        (hi << 8) | lo
+    }
 
     fn set_z(&mut self, r: u8) {
         self.z = match r {
@@ -361,12 +385,20 @@ impl CPU {
         match opcode {
             // JMP
             0x4C | 0x6C => self.pc = address,
+            // JSR
+            0x20 => {
+                let minus = self.pc - 1;
+                self.push16(minus);
+                self.pc = address;
+            }
             // LDX
             0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
                 let a = self.read(address);
                 self.x = a;
                 self.set_zn(a);
             }
+            // NOP
+            0xEA => {},
             // STX
             0x86 | 0x96 | 0x8E => {
                 let x = self.x;
