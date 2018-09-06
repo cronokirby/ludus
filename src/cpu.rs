@@ -367,6 +367,11 @@ impl CPU {
                 self.x = a;
                 self.set_zn(a);
             }
+            // STX
+            0x86 | 0x96 | 0x8E => {
+                let x = self.x;
+                self.write(address, x);
+            }
             _ => panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
