@@ -178,16 +178,6 @@ impl CPU {
         self.set_flags(0x24);
     }
 
-    pub fn read(&self, address: u16) -> u8 {
-        self.mem.borrow().cpu_read(address)
-    }
-
-    pub fn read16(&self, address: u16) -> u16 {
-        let lo = self.read(address) as u16;
-        let hi = self.read(address + 1) as u16;
-        (hi << 8) | lo
-    }
-
     fn set_flags(&mut self, flags: u8) {
         self.c = (flags >> 0) & 1;
         self.z = (flags >> 1) & 1;
@@ -197,6 +187,16 @@ impl CPU {
         self.u = (flags >> 5) & 1;
         self.v = (flags >> 6) & 1;
         self.n = (flags >> 7) & 1;
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        self.mem.borrow().cpu_read(address)
+    }
+
+    pub fn read16(&self, address: u16) -> u16 {
+        let lo = self.read(address) as u16;
+        let hi = self.read(address + 1) as u16;
+        (hi << 8) | lo
     }
 }
 
