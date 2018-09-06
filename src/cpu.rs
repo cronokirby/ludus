@@ -388,6 +388,14 @@ impl CPU {
         }
         // todo, actually emulate
         match opcode {
+            // BCC
+            0x90 => {
+                if self.c != 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
             // BCS
             0xB0 => {
                 if self.c != 0 {
