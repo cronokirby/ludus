@@ -404,6 +404,14 @@ impl CPU {
                     cycles += branch_cycles(pc, address)
                 }
             }
+            // BEQ
+            0xF0 => {
+                if cpu.z != 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
             // CLC
             0x18 => self.c = 0,
             // JMP
