@@ -425,6 +425,14 @@ impl CPU {
                     cycles += branch_cycles(pc, address);
                 }
             }
+            // BNE
+            0xD0 => {
+                if self.z == 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
             // CLC
             0x18 => self.c = 0,
             // JMP
