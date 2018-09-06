@@ -178,11 +178,11 @@ impl CPU {
         self.set_flags(0x24);
     }
 
-    fn read(&self, address: u16) -> u8 {
+    pub fn read(&self, address: u16) -> u8 {
         self.mem.borrow().cpu_read(address)
     }
 
-    fn read16(&self, address: u16) -> u16 {
+    pub fn read16(&self, address: u16) -> u16 {
         let lo = self.read(address) as u16;
         let hi = self.read(address + 1) as u16;
         (hi << 8) | lo
@@ -201,86 +201,82 @@ impl CPU {
 }
 
 
+fn print_op(pc: &mut u16, opcode: u8,
+            addressing: Addressing, lo: u8, hi: u8)
+{
+    let op = OP_NAMES[opcode as usize];
+    match addressing {
+        Addressing::Absolute => {
+            *pc += 2;
+            print!("{} ${:02X}{:02X}", op, hi, lo);
+        }
+        Addressing::AbsoluteX => {
+            *pc += 2;
+            print!("{} ${:02X}{:02X}", op, hi, lo);
+        }
+        Addressing::AbsoluteY => {
+            *pc += 2;
+            print!("{} ${:02X}{:02X}", op, hi, lo);
+        }
+        Addressing::Accumulator => {
+            print!("{} A", op);
+        }
+        Addressing::Immediate => {
+            *pc += 1;
+            print!("{} #${:02X}", op, lo);
+        }
+        Addressing::Implied => {
+            print!("{}", op);
+        }
+        Addressing::IndexedIndirect => {
+            *pc += 1;
+            print!("{} (${:02X},X)", op, lo);
+        }
+        Addressing::Indirect => {
+            *pc += 2;
+            print!("{} (${:02X}{:02X})", op, hi, lo)
+        }
+        Addressing::IndirectIndexed => {
+            *pc += 1;
+            print!("{} (${:02X}),Y", op, lo);
+        }
+        Addressing::Relative => {
+            *pc += 1;
+            print!("{} *+{:02X}", op, lo);
+        }
+        Addressing::ZeroPage => {
+            *pc += 1;
+            print!("{} ${:02X}", op, lo);
+        }
+        Addressing::ZeroPageX => {
+            *pc += 1;
+            print!("{} ${:02X},X", op, lo);
+        }
+        Addressing::ZeroPageY => {
+            *pc += 1;
+            print!("{} ${:02X},Y", op, lo);
+        }
+    }
+}
 
 pub fn disassemble(in_buf: &[u8]) {
     // we read in the buffer to be able to append the first 2 bytes at the end
     // to simulate wrapped reading. 2 is sufficient because 3 is the largest
     // op size
     let mut buf: Vec<u8> = in_buf.iter().cloned().collect();
+    let len = buf.len();
     let a = buf[0].clone();
     let b = buf[1].clone();
     buf.push(a);
     buf.push(b);
     let mut pc = 0;
-    let len = buf.len();
-    while pc < len {
-        let opcode = buf[pc] as usize;
+    while (pc as usize) < len {
+        let pcu = pc as usize;
+        let opcode = buf[pcu] as usize;
         let op = OP_NAMES[opcode];
-        let addressing = OP_MODES[opcode];
-        match Addressing::from_byte(addressing) {
-            Addressing::Absolute => {
-                pc += 1;
-                let lo = buf[pc];
-                pc += 1;
-                let hi = buf[pc];
-                println!("{} ${:02X}{:02X}", op, hi, lo);
-            }
-            Addressing::AbsoluteX => {
-                pc += 1;
-                let lo = buf[pc];
-                pc += 1;
-                let hi = buf[pc];
-                println!("{} ${:02X}{:02X}", op, hi, lo);
-            }
-            Addressing::AbsoluteY => {
-                pc += 1;
-                let lo = buf[pc];
-                pc += 1;
-                let hi = buf[pc];
-                println!("{} ${:02X}{:02X}", op, hi, lo);
-            }
-            Addressing::Accumulator => {
-                println!("{} A", op);
-            }
-            Addressing::Immediate => {
-                pc += 1;
-                println!("{} #${:02X}", op, buf[pc]);
-            }
-            Addressing::Implied => {
-                println!("{}", op);
-            }
-            Addressing::IndexedIndirect => {
-                pc += 1;
-                println!("{} (${:02X},X)", op, buf[pc]);
-            }
-            Addressing::Indirect => {
-                pc += 1;
-                let lo = buf[pc];
-                pc += 1;
-                let hi = buf[pc];
-                println!("{} (${:02X}{:02X})", op, hi, lo)
-            }
-            Addressing::IndirectIndexed => {
-                pc += 1;
-                println!("{} (${:02X}),Y", op, buf[pc]);
-            }
-            Addressing::Relative => {
-                pc += 1;
-                println!("{} *+{:02X}", op, buf[pc]);
-            }
-            Addressing::ZeroPage => {
-                pc += 1;
-                println!("{} ${:02X}", op, buf[pc]);
-            }
-            Addressing::ZeroPageX => {
-                pc += 1;
-                println!("{} ${:02X},X", op, buf[pc]);
-            }
-            Addressing::ZeroPageY => {
-                pc += 1;
-                println!("{} ${:02X},Y", op, buf[pc]);
-            }
-        }
+        let addressing = Addressing::from_byte(OP_MODES[opcode]);
+        print_op(&mut pc, buf[pcu], addressing, buf[pcu + 1], buf[pcu + 2]);
+        println!("");
         pc += 1;
     }
 }
