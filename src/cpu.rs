@@ -330,7 +330,8 @@ impl CPU {
     }
 
     fn php(&mut self) {
-        self.push(self.get_flags() | 0x10);
+        let flags = self.get_flags();
+        self.push(flags | 0x10);
     }
 
     /// Steps the cpu forward by a single instruction
@@ -493,6 +494,12 @@ impl CPU {
             }
             // NOP
             0xEA => {},
+            // PLA
+            0x68 => {
+                let a = self.pull();
+                self.a = a;
+                self.set_zn(a);
+            }
             // PHP
             0x08 => self.php(),
             // RTS
