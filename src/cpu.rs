@@ -487,6 +487,8 @@ impl CPU {
             }
             // CLC
             0x18 => self.c = 0,
+            // CLD
+            0xD8 => self.d = 0,
             // CMP
             0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
                 let value = self.read(address);
