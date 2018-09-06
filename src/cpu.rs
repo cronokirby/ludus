@@ -406,6 +406,12 @@ impl CPU {
         }
         // todo, actually emulate
         match opcode {
+            // AND
+            0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => {
+                let a = self.a & self.read(address);
+                self.a = a;
+                self.set_zn(a);
+            }
             // BCC
             0x90 => {
                 if self.c == 0 {
