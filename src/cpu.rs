@@ -462,7 +462,7 @@ impl CPU {
             // STA
             0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                 let a = self.a;
-                cpu.write(address, a);
+                self.write(address, a);
             }
             // STX
             0x86 | 0x96 | 0x8E => {
