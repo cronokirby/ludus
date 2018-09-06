@@ -453,6 +453,14 @@ impl CPU {
                self.set_z(value & a);
                self.set_n(value);
             }
+            // BMI
+            0x30 => {
+                if self.n != 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
             // BNE
             0xD0 => {
                 if self.z == 0 {
