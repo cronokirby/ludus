@@ -530,6 +530,11 @@ impl CPU {
             }
             // PHP
             0x08 => self.php(),
+            // PLP
+            0x28 => {
+                let p = self.pull();
+                self.set_flags((p & 0xEF) | 0x20);
+            }
             // RTS
             0x60 => self.pc = self.pull16() + 1,
             // SEC
