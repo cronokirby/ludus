@@ -441,6 +441,14 @@ impl CPU {
                     cycles += branch_cycles(pc, address);
                 }
             }
+            // BVC
+            0x50 => {
+                if self.v == 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
             // BVS
             0x70 => {
                 if self.v != 0 {
