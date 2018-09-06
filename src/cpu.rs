@@ -158,6 +158,11 @@ fn pages_differ(a: u16, b: u16) -> bool {
     a & 0xFF00 != b & 0xFF
 }
 
+/// Returns the number of extra cycles used by a branch instruction
+fn branch_cycles(pc: u16, address: u16) -> i32 {
+    if pages_differ(pc, address) { 2 } else { 1 }
+}
+
 
 /// Represents possible CPU interrupts
 /// Represents the CPU
@@ -383,6 +388,14 @@ impl CPU {
         }
         // todo, actually emulate
         match opcode {
+            // BCS
+            0xB0 => {
+                if self.c != 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address)
+                }
+            }
             // JMP
             0x4C | 0x6C => self.pc = address,
             // JSR
