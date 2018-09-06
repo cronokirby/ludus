@@ -230,7 +230,6 @@ impl CPU {
     /// Resets the CPU to its initial powerup state.
     pub fn reset(&mut self) {
         self.pc = self.read16(0xFFFC) + 0x8000;
-        println!("PC initialised to {:X}", self.pc);
         self.sp = 0xFD;
         self.set_flags(0x24);
     }
@@ -264,19 +263,28 @@ impl CPU {
         (hi << 8) | lo
     }
 
-    /// Prints the upcoming operation
-    pub fn print_current_op(&self) {
-        let opcode = self.read(self.pc);
-        let lo = self.read(self.pc + 1);
-        let hi = self.read(self.pc + 2);
-        print!("{:X} ", self.pc);
-        print_op(opcode, lo, hi);
+    fn write(&mut self, address: u16, value: u8) {
+        self.mem.borrow_mut().cpu_write(address, value);
     }
 
-    /// Prints the current state of the CPU
-    pub fn print_state(&self) {
-        println!("A: {:X} X: {:X} Y: {:X} SP: {:X}",
-            self.a, self.x, self.y, self.sp);
+
+    fn set_z(&mut self, r: u8) {
+        self.z = match r {
+            0 => 1,
+            _ => 0
+        }
+    }
+
+    fn set_n(&mut self, r: u8) {
+        self.z = match r & 0x80 {
+            0 => 1,
+            _ => 0
+        }
+    }
+
+    fn set_zn(&mut self, r: u8) {
+        self.set_z(r);
+        self.set_n(r);
     }
 
     /// Steps the cpu forward by a single instruction
@@ -351,9 +359,33 @@ impl CPU {
         }
         // todo, actually emulate
         match opcode {
+            // JMP
+            0x4C | 0x6C => self.pc = address,
+            // LDX
+            0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
+                let a = self.read(address);
+                self.x = a;
+                self.set_zn(a);
+            }
             _ => panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
+    }
+
+
+    /// Prints the upcoming operation
+    pub fn print_current_op(&self) {
+        let opcode = self.read(self.pc);
+        let lo = self.read(self.pc + 1);
+        let hi = self.read(self.pc + 2);
+        print!("{:X} ", self.pc);
+        print_op(opcode, lo, hi);
+    }
+
+    /// Prints the current state of the CPU
+    pub fn print_state(&self) {
+        println!("A: {:X} X: {:X} Y: {:X} SP: {:X}",
+            self.a, self.x, self.y, self.sp);
     }
 }
 

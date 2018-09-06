@@ -61,4 +61,23 @@ impl MemoryBus {
             }
         }
     }
+
+    pub fn cpu_write(&mut self, address: u16, value: u8) {
+        match address {
+            a if a < 0x2000 => self.ram[(a % 0x800) as usize] = value,
+            a if a < 0x4016 => {
+                panic!("Unimplemented PPU write at {:X}", a);
+            }
+            0x4016 => {
+                panic!("Unimplemented Controller write");
+            }
+            0x4017 => {
+                panic!("Unimplemented APU write");
+            }
+            a if a >= 0x6000 => self.mapper.write(address, value),
+            a => {
+                panic!("Unhandled CPU write at {:X}");
+            }
+        }
+    }
 }
