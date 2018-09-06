@@ -43,7 +43,7 @@ impl MemoryBus {
 
     pub fn cpu_read(&self, address: u16) -> u8 {
         match address {
-            a if a < 0x2000 => self.ram[a % 0x800 as usize],
+            a if a < 0x2000 => self.ram[(a % 0x800) as usize],
             a if a < 0x4016 => {
                 panic!("Unimplemented PPU read at {:X}", a);
             }
