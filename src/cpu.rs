@@ -429,12 +429,21 @@ impl CPU {
             0x24 | 0x2C => {
                let value = self.read(address);
                self.v = (value >> 6) & 1;
-               self.set_z(value & self.a);
+               let a = self.a;
+               self.set_z(value & a);
                self.set_n(value);
             }
             // BNE
             0xD0 => {
                 if self.z == 0 {
+                    let pc = self.pc;
+                    self.pc = address;
+                    cycles += branch_cycles(pc, address);
+                }
+            }
+            // BVS
+            0x70 => {
+                if self.v != 0 {
                     let pc = self.pc;
                     self.pc = address;
                     cycles += branch_cycles(pc, address);
