@@ -319,8 +319,8 @@ impl CPU {
 
     fn set_n(&mut self, r: u8) {
         self.n = match r & 0x80 {
-            0 => 1,
-            _ => 0
+            0 => 0,
+            _ => 1
         }
     }
 
