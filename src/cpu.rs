@@ -396,6 +396,8 @@ impl CPU {
                     cycles += branch_cycles(pc, address)
                 }
             }
+            // CLC
+            0x18 => self.c = 0,
             // JMP
             0x4C | 0x6C => self.pc = address,
             // JSR
