@@ -414,6 +414,12 @@ impl CPU {
                 self.push16(minus);
                 self.pc = address;
             }
+            // LDA
+            0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
+                let a = self.read(address);
+                self.a = a;
+                self.set_zn(a);
+            }
             // LDX
             0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
                 let a = self.read(address);
