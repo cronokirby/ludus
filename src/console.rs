@@ -8,8 +8,7 @@ use super::memory::MemoryBus;
 /// as well as communication between processors.
 pub struct Console {
     cpu: CPU,
-    memory: MemoryBus,
-    ram: [u8; 0x2000]
+    memory: MemoryBus
 }
 
 impl Console {
@@ -19,7 +18,7 @@ impl Console {
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
         mem_res.map(|memory| {
-            let mut console = Console { cpu, memory, ram };
+            let mut console = Console { cpu, memory };
             // this is done now because we need ram to be available
             console.cpu.reset(&console.memory);
             console
