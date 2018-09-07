@@ -655,6 +655,26 @@ impl CPU {
                 let p = self.pull();
                 self.set_flags((p & 0xEF) | 0x20);
             }
+            // ROR
+            0x6A | 0x66 | 0x76 | 0x6E | 0x7E => {
+                match addressing {
+                    Addressing::Accumulator => {
+                        let c = self.c;
+                        self.c = self.a & 1;
+                        let a = (self.a >> 1) | (c << 7);
+                        self.a = a;
+                        self.set_zn(a);
+                    }
+                    _ => {
+                        let c = self.c;
+                        let mut value = self.read(address);
+                        self.c = value & 1;
+                        value = (value >> 1) | (c << 7);
+                        self.write(address, value);
+                        self.set_zn(value);
+                    }
+                }
+            }
             // RTI
             0x40 => {
                 let p = self.pull();
