@@ -596,6 +596,25 @@ impl CPU {
             }
             // RTS
             0x60 => self.pc = self.pull16() + 1,
+            // SBC
+            0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => {
+                let a = self.a;
+                let b = self.read(address);
+                let c = self.c;
+                let a2 = a.wrapping_sub(b).wrapping_sub(1 - c);
+                self.a = a2;
+                self.set_zn(a2);
+                if (a as i32) - (b as i32) - ((1 - c) as i32) >= 0 {
+                    self.c = 1;
+                } else {
+                    self.c = 0;
+                }
+                if (a^b) & 0x80 != 0 && (a^a2) & 0x80 != 0 {
+                    self.v = 1;
+                } else {
+                    self.v = 0;
+                }
+            }
             // SEC
             0x38 => self.c = 1,
             // SED
