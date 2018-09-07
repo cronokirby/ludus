@@ -655,6 +655,18 @@ impl CPU {
                 let x = self.x;
                 self.write(address, x);
             }
+            // TAX
+            0xAA => {
+                let a = self.a;
+                self.x = a;
+                self.set_zn(a);
+            }
+            // TAY
+            0xA8 => {
+                let a = self.a;
+                self.y = a;
+                self.set_zn(a);
+            }
             _ => panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
