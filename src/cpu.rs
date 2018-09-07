@@ -343,6 +343,21 @@ impl CPU {
         };
     }
 
+    fn nmi(&mut self) {
+        let pc = self.pc;
+        self.push16(pc);
+        self.pc = self.read16(0xFFFA);
+        self.i = 1;
+    }
+
+    fn irq(&mut self) {
+        let pc = self.pc;
+        self.push16(pc);
+        self.pc = self.read16(0xFFFE);
+        self.i = 1;
+    }
+
+
     /// Steps the cpu forward by a single instruction
     /// Returns the number of cycles passed
     pub fn step(&mut self) -> i32 {
@@ -352,6 +367,11 @@ impl CPU {
             return 1;
         }
         let mut cycles = 0;
+        match self.interrupt {
+            None => {}
+            Some(Interrupt::NMI) => self.nmi(),
+            Some(Interrupt::IRQ) => self.irq(),
+        }
         let opcode = self.read(self.pc);
         // We now fetch the adress based on what type of addressing the
         // opcode requires, and set the page crossed, in order to
