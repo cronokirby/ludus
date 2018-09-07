@@ -665,6 +665,14 @@ impl CPU {
                         self.a = a;
                         self.set_zn(a);
                     }
+                    _ => {
+                        let c = self.c;
+                        let mut value = self.read(address);
+                        self.c = (value >> 7) & 1;
+                        value = (value << 1) | c;
+                        self.write(address, value);
+                        self.set_zn(value);
+                    }
                 }
             }
             // ROR
