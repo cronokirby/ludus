@@ -1,0 +1,1 @@
+pub type Buffer = [u32; 256 * 240];

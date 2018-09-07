@@ -26,10 +26,16 @@ impl Console {
         })
     }
 
-    pub fn step(&mut self) {
-        self.cpu.step();
+    pub fn step(&mut self) -> i32 {
+        self.cpu.step()
     }
 
+    pub fn step_micros(&mut self, micros: u32) {
+        let mut cpu_cycles = ((micros * 179) / 100) as i32;
+        while cpu_cycles > 0 {
+            cpu_cycles = cpu_cycles - self.step();
+        }
+    }
     pub fn update_window(&self, window: &mut Window) {
         let buffer = [0x00FF00FF; 256 * 240];
         window.update_with_buffer(&buffer).unwrap();

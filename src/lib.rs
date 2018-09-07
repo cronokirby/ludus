@@ -13,6 +13,7 @@ use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
 use std::io::{Read, stdin};
+use std::time::Instant;
 
 
 /// Attempts to disassemble a rom, panicing on exits
@@ -95,7 +96,12 @@ pub fn run(rom_name: &str) {
         "Test - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
 
+    let mut old = Instant::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        let now = Instant::now();
+        let duration = now.duration_since(old);
+        old = now;
+        console.step_micros(duration.subsec_micros());
         console.update_window(&mut window);
     }
 }
