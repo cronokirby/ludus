@@ -357,7 +357,8 @@ impl CPU {
         // opcode requires, and set the page crossed, in order to
         // increment the cycles if necessary.
         let mut page_crossed = false;
-        let address = match Addressing::from_byte(OP_MODES[opcode as usize]) {
+        let addressing = Addressing::from_byte(OP_MODES[opcode as usize]);
+        let address = match addressing {
             Addressing::Absolute => self.read16(self.pc + 1),
             Addressing::AbsoluteX => {
                 let read = self.read16(self.pc + 1);
@@ -591,6 +592,24 @@ impl CPU {
                 let y = self.read(address);
                 self.y = y;
                 self.set_zn(y);
+            }
+            // LSR
+            0x4A | 0x46 | 0x56 | 0x4E | 0x5E => {
+                match addressing {
+                    Addressing::Accumulator => {
+                        self.c = self.a & 1;
+                        let a = self.a >> 1;
+                        self.a = a;
+                        self.set_zn(a);
+                    }
+                    _ => {
+                        let mut value = self.read(address);
+                        self.c = value & 1;
+                        value >>= 1;
+                        self.write(address, value);
+                        self.set_zn(value);
+                    }
+                }
             }
             // NOP
             0xEA => {},
