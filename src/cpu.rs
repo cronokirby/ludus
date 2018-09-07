@@ -573,6 +573,12 @@ impl CPU {
                 self.a = a;
                 self.set_zn(a);
             }
+            // INC
+            0xE6 | 0xF6 | 0xEE | 0xFE => {
+                let value = self.read(address) + 1;
+                self.write(address, value);
+                self.set_zn(value);
+            }
             // INX
             0xE8 => {
                 let x = self.x.wrapping_add(1);
