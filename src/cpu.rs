@@ -618,6 +618,12 @@ impl CPU {
                 let p = self.pull();
                 self.set_flags((p & 0xEF) | 0x20);
             }
+            // RTI
+            0x40 => {
+                let p = self.pull();
+                self.set_flags((p & 0xEF) | 0x20);
+                self.pc = self.pull16();
+            }
             // RTS
             0x60 => self.pc = self.pull16() + 1,
             // SBC
