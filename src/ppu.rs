@@ -1,4 +1,4 @@
-use super::memory::MemoryBus;
+use super::memory::{Mapper, MemoryBus};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,11 +9,12 @@ type VBuffer = [u32; 256 * 240];
 pub struct PPUState {
     oam: [u8; 0xFF],
     /// Current vram address (15 bit)
-    v: u16,
+    pub v: u16, // Public for access during CPU IO reading
     /// Temporary vram address (15 bit)
     t: u16,
     /// Write toggle (1 bit)
     w: u8,
+    register: u8,
     // Nmi flags
     nmi_occurred: bool,
     nmi_output: bool,
@@ -24,7 +25,7 @@ pub struct PPUState {
     // 0: $2000, 1: $2400, 2: $2800, 3: $2C00
     flg_nametable: u8,
     // 0: add 1, 1: add 32
-    flg_increment: u8,
+    pub flg_increment: u8, // Pub for access during Bus IO
     // 0: $0000, 1: $1000
     flg_spritetable: u8,
     // 0: $0000, 1: $1000
@@ -60,13 +61,14 @@ pub struct PPUState {
     oam_address: u8,
 
     // $2007 PPUDATA
-    buffer_data: u8,
+    pub buffer_data: u8, // Pub for Bus access during CPU IO
 }
 
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
             oam: [0; 0xFF], v: 0, t: 0, w: 0,
+            register: 0,
             nmi_occurred: false, nmi_output: false,
             nmi_previous: false, nmi_delay: 0,
             flg_nametable: 0, flg_increment: 0,
@@ -88,6 +90,52 @@ impl PPUState {
             self.nmi_delay = 15;
         }
         self.nmi_previous = nmi;
+    }
+
+    /// Needs the wrapper because it might read from CHR data
+    pub fn read_register(&mut self, m: &Box<Mapper>, address: u16) -> u8 {
+        match address {
+            0x2002 => self.read_status(),
+            0x2004 => self.read_oam_data(),
+            0x2007 => self.read_data(m),
+            _ => 0,
+        }
+    }
+
+    fn read_status(&mut self) -> u8 {
+        let mut res = self.register & 0x1F;
+        res |= self.flg_spriteoverflow << 5;
+        res |= self.flg_sprite0hit << 6;
+        if self.nmi_occurred {
+            res |= 1 << 7;
+        }
+        self.nmi_occurred = false;
+        self.nmi_change();
+        self.w = 0;
+        res
+    }
+
+    fn read_oam_data(&self) -> u8 {
+        self.oam[self.oam_address as usize]
+    }
+
+    fn read_data(&mut self, mapper: &Box<Mapper>) -> u8 {
+        let v = self.v;
+        let mut value = mapper.read(v);
+        if v % 0x4000 < 0x3F00 {
+            let buffer = self.buffer_data;
+            self.buffer_data = value;
+            value = buffer;
+        } else {
+            let read = mapper.read(v.wrapping_sub(0x1000));
+            self.buffer_data = read;
+        }
+        if self.flg_increment == 0 {
+            self.v += 1;
+        } else {
+            self.v += 32;
+        }
+        value
     }
 
     fn write_control(&mut self, value: u8) {

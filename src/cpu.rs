@@ -261,18 +261,18 @@ impl CPU {
         r
     }
 
-    pub fn read(&self, address: u16) -> u8 {
-        self.mem.borrow().cpu_read(address)
+    pub fn read(&mut self, address: u16) -> u8 {
+        self.mem.borrow_mut().cpu_read(address)
     }
 
-    pub fn read16(&self, address: u16) -> u16 {
+    pub fn read16(&mut self, address: u16) -> u16 {
         let lo = self.read(address) as u16;
         let hi = self.read(address + 1) as u16;
         (hi << 8) | lo
     }
 
     /// Emulates a software bug where only the lower bit wraps around
-    fn read16bug(&self, a: u16) -> u16 {
+    fn read16bug(&mut self, a: u16) -> u16 {
         let b = (a & 0xFF00) | ((a + 1) & 0xFF);
         let lo = self.read(a) as u16;
         let hi = self.read(b) as u16;
@@ -386,22 +386,31 @@ impl CPU {
         }
         self.interrupt = None;
 
-        let opcode = self.read(self.pc);
+
+        let opcode = {
+            let pc = self.pc;
+            self.read(pc)
+        };
         // We now fetch the adress based on what type of addressing the
         // opcode requires, and set the page crossed, in order to
         // increment the cycles if necessary.
         let mut page_crossed = false;
         let addressing = Addressing::from_byte(OP_MODES[opcode as usize]);
         let address = match addressing {
-            Addressing::Absolute => self.read16(self.pc.wrapping_add(1)),
+            Addressing::Absolute => {
+                let pc = self.pc.wrapping_add(1);
+                self.read16(pc)
+            }
             Addressing::AbsoluteX => {
-                let read = self.read16(self.pc.wrapping_add(1));
+                let pc = self.pc.wrapping_add(1);
+                let read = self.read16(pc);
                 let address = read.wrapping_add(self.x as u16);
                 page_crossed = pages_differ(read, address);
                 address
             }
             Addressing::AbsoluteY => {
-                let read = self.read16(self.pc.wrapping_add(1));
+                let pc = self.pc.wrapping_add(1);
+                let read = self.read16(pc);
                 let address = read.wrapping_add(self.y as u16);
                 page_crossed = pages_differ(read, address);
                 address
@@ -416,10 +425,12 @@ impl CPU {
             }
             Addressing::Indirect => {
                 let next = self.pc.wrapping_add(1);
-                self.read16bug(self.read16(next))
+                let read = self.read16(next);
+                self.read16bug(read)
             }
             Addressing::IndirectIndexed => {
-                let read = self.read(self.pc.wrapping_add(1)) as u16;
+                let pc = self.pc.wrapping_add(1);
+                let read = self.read(pc) as u16;
                 let added = read.wrapping_add(self.y as u16);
                 let address = self.read16bug(added as u16);
                 let old_addr = address.wrapping_sub(self.y as u16);
@@ -427,7 +438,8 @@ impl CPU {
                 address
             }
             Addressing::Relative => {
-                let offset = self.read(self.pc.wrapping_add(1)) as u16;
+                let pc = self.pc.wrapping_add(1);
+                let offset = self.read(pc) as u16;
                 // treating this as a signed integer
                 let nxt = self.pc.wrapping_add(2).wrapping_add(offset);
                 if offset < 0x80 {
@@ -839,10 +851,11 @@ impl CPU {
 
 
     /// Prints the upcoming operation
-    pub fn print_current_op(&self) {
-        let opcode = self.read(self.pc);
-        let lo = self.read(self.pc + 1);
-        let hi = self.read(self.pc + 2);
+    pub fn print_current_op(&mut self) {
+        let pc = self.pc;
+        let opcode = self.read(pc);
+        let lo = self.read(pc + 1);
+        let hi = self.read(pc + 2);
         print!("{:X} ", self.pc);
         print_op(opcode, lo, hi);
     }
