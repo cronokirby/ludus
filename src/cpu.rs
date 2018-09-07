@@ -542,6 +542,18 @@ impl CPU {
                 self.a = a;
                 self.set_zn(a);
             }
+            // INX
+            0xE8 => {
+                let x = self.x.wrapping_add(1);
+                self.x = x;
+                self.set_zn(x);
+            }
+            // INY
+            0xC8 => {
+                let y = self.y.wrapping_add(1);
+                self.y = y;
+                self.set_zn(y);
+            }
             // JMP
             0x4C | 0x6C => self.pc = address,
             // JSR
