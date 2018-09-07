@@ -415,6 +415,25 @@ impl CPU {
         }
         // todo, actually emulate
         match opcode {
+            // ADC
+            0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => {
+                let a = self.a;
+                let b = self.read(address);
+                let c = self.c;
+                let a2 = a.wrapping_add(b).wrapping_add(c);
+                self.a = a2;
+                self.set_zn(a2);
+                if (a as i32) + (b as i32) + (c as i32) > 0xFF {
+                    self.c = 1;
+                } else {
+                    self.c = 0;
+                }
+                if (a^b) & 0x80 == 0 && (a ^ a2) & 0x80 != 0 {
+                    self.v = 1;
+                } else {
+                    self.v = 0;
+                }
+            }
             // AND
             0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => {
                 let a = self.a & self.read(address);
