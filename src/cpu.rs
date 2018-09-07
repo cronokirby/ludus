@@ -343,6 +343,14 @@ impl CPU {
         };
     }
 
+    pub fn set_nmi(&mut self) {
+        self.interrupt = Some(Interrupt::NMI);
+    }
+
+    pub fn set_irq(&mut self) {
+        self.interrupt = Some(Interrupt::IRQ);
+    }
+
     fn nmi(&mut self) {
         let pc = self.pc;
         self.push16(pc);
@@ -369,9 +377,17 @@ impl CPU {
         let mut cycles = 0;
         match self.interrupt {
             None => {}
-            Some(Interrupt::NMI) => self.nmi(),
-            Some(Interrupt::IRQ) => self.irq(),
+            Some(Interrupt::NMI) => {
+                self.nmi();
+                cycles += 7;
+            }
+            Some(Interrupt::IRQ) => {
+                self.irq();
+                cycles += 7;
+            }
         }
+        self.interrupt = None;
+
         let opcode = self.read(self.pc);
         // We now fetch the adress based on what type of addressing the
         // opcode requires, and set the page crossed, in order to
