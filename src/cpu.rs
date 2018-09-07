@@ -206,9 +206,7 @@ pub struct CPU {
 
 impl CPU {
     /// Creates a new CPU
-    /// `reset` should be called if doing this at initialisation of console,
-    ///  but cannot be done inside this function, since RAM isn't live.
-    pub fn zeroed(mem: Rc<RefCell<MemoryBus>>) -> Self {
+    pub fn new(mem: Rc<RefCell<MemoryBus>>) -> Self {
         let pc = 0;
         let sp = 0;
         let a = 0;
