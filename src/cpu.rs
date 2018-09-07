@@ -667,12 +667,20 @@ impl CPU {
                 self.y = a;
                 self.set_zn(a);
             }
+            // TSX
+            0xBA => {
+                let sp = self.sp;
+                self.x = sp;
+                self.set_zn(sp);
+            }
             // TXA
             0x8A => {
                 let x = self.x;
                 self.a = x;
                 self.set_zn(x);
             }
+            // TXS
+            0x9A => self.sp = self.x,
             // TYA
             0x98 => {
                 let y = self.y;
