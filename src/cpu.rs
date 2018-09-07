@@ -1,7 +1,7 @@
 use super::memory::MemoryBus;
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 
 // The various addressing modes of each opcode
@@ -359,51 +359,62 @@ impl CPU {
         let mut page_crossed = false;
         let addressing = Addressing::from_byte(OP_MODES[opcode as usize]);
         let address = match addressing {
-            Addressing::Absolute => self.read16(self.pc + 1),
+            Addressing::Absolute => self.read16(self.pc.wrapping_add(1)),
             Addressing::AbsoluteX => {
-                let read = self.read16(self.pc + 1);
-                let address = read + self.x as u16;
+                let read = self.read16(self.pc.wrapping_add(1));
+                let address = read.wrapping_add(self.x as u16);
                 page_crossed = pages_differ(read, address);
                 address
             }
             Addressing::AbsoluteY => {
-                let read = self.read16(self.pc + 1);
-                let address = read + self.y as u16;
+                let read = self.read16(self.pc.wrapping_add(1));
+                let address = read.wrapping_add(self.y as u16);
                 page_crossed = pages_differ(read, address);
                 address
             }
             Addressing::Accumulator => 0,
-            Addressing::Immediate => self.pc + 1,
+            Addressing::Immediate => self.pc.wrapping_add(1),
             Addressing::Implied => 0,
             Addressing::IndexedIndirect => {
-                let added = self.read(self.pc + 1).wrapping_add(self.x);
+                let next = self.pc.wrapping_add(1);
+                let added = self.read(next).wrapping_add(self.x);
                 self.read16bug(added as u16)
             }
-            Addressing::Indirect => self.read16bug(self.read16(self.pc + 1)),
+            Addressing::Indirect => {
+                let next = self.pc.wrapping_add(1);
+                self.read16bug(self.read16(next))
+            }
             Addressing::IndirectIndexed => {
-                let added = self.read(self.pc + 1).wrapping_add(self.y);
+                let read = self.read(self.pc.wrapping_add(1)) as u16;
+                let added = read.wrapping_add(self.y as u16);
                 let address = self.read16bug(added as u16);
-                let old_addr = address - (self.y as u16);
+                let old_addr = address.wrapping_sub(self.y as u16);
                 page_crossed = pages_differ(address, old_addr);
                 address
             }
             Addressing::Relative => {
-                let offset = self.read(self.pc + 1) as u16;
+                let offset = self.read(self.pc.wrapping_add(1)) as u16;
                 // treating this as a signed integer
+                let nxt = self.pc.wrapping_add(2).wrapping_add(offset);
                 if offset < 0x80 {
-                    self.pc + 2 + offset
+                    nxt
                 } else {
-                    self.pc + 2 + offset - 0x100
+                    nxt.wrapping_sub(0x100)
                 }
             }
-            Addressing::ZeroPage => self.read(self.pc + 1) as u16,
+            Addressing::ZeroPage => {
+                let next = self.pc.wrapping_add(1);
+                self.read(next) as u16
+            }
             Addressing::ZeroPageX => {
-                let added = self.read(self.pc + 1).wrapping_add(self.x);
+                let next = self.pc.wrapping_add(1);
+                let added = self.read(next).wrapping_add(self.x);
                 // we don't need to & 0xFF here, since added is a byte
                 added as u16
             }
             Addressing::ZeroPageY => {
-                let added = self.read(self.pc + 1).wrapping_add(self.y);
+                let next = self.pc.wrapping_add(1);
+                let added = self.read(next).wrapping_add(self.y);
                 added as u16
             }
         };
