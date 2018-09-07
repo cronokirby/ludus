@@ -555,6 +555,12 @@ impl CPU {
                 let y = self.y;
                 self.compare(y, value);
             }
+            // DEC
+            0xC6 | 0xD6 | 0xCE | 0xDE => {
+                let value = self.read(address).wrapping_sub(1);
+                self.write(address, value);
+                self.set_zn(value);
+            }
             // DEX
             0xCA => {
                 let x = self.x.wrapping_sub(1);
