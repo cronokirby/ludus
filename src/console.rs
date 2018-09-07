@@ -2,6 +2,8 @@ use super::cart::CartReadingError;
 use super::cpu::CPU;
 use super::memory::MemoryBus;
 
+use super::minifb::Window;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -26,6 +28,11 @@ impl Console {
 
     pub fn step(&mut self) {
         self.cpu.step();
+    }
+
+    pub fn update_window(&self, window: &mut Window) {
+        let buffer = [0x00FF00FF; 256 * 240];
+        window.update_with_buffer(&buffer).unwrap();
     }
 
     /// Steps the console forward printing debug information

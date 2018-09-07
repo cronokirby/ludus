@@ -24,5 +24,7 @@ fn main() {
         ludus::disassemble(&rom_name);
     } else if debug {
         ludus::debug(&rom_name);
+    } else {
+        ludus::run(&rom_name);
     }
 }

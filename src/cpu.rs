@@ -234,7 +234,7 @@ impl CPU {
 
     /// Resets the CPU to its initial powerup state.
     pub fn reset(&mut self) {
-        self.pc = self.read16(0xFFFC) + 0x8000;
+        self.pc = self.read16(0xFFFC);
         self.sp = 0xFD;
         self.set_flags(0x24);
     }

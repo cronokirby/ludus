@@ -1,10 +1,15 @@
+extern crate minifb;
+
 pub mod cart;
 pub mod console;
 pub mod cpu;
 pub mod memory;
+pub mod ppu;
 
 #[cfg(test)]
 mod tests;
+
+use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
 use std::io::{Read, stdin};
@@ -44,12 +49,12 @@ fn get_interaction() -> Option<Interaction> {
     }
 }
 
-pub fn debug(rom_name: &str) {
+fn get_console(rom_name: &str) -> console::Console {
     let mut buffer: Vec<u8> = Vec::new();
     let mut file = File::open(rom_name)
         .expect("Couldn't open the ROM file");
     file.read_to_end(&mut buffer).expect("Couldn't read ROM file");
-    let mut console = console::Console::new(&buffer).unwrap_or_else(|e| {
+    console::Console::new(&buffer).unwrap_or_else(|e| {
         match e {
             cart::CartReadingError::UnknownMapper(n) => {
                 panic!("Unkown Mapper: {}", n)
@@ -58,7 +63,11 @@ pub fn debug(rom_name: &str) {
                 panic!("ROM was in an unrecognised format")
             }
         }
-    });
+    })
+}
+
+pub fn debug(rom_name: &str) {
+    let mut console = get_console(rom_name);
     let mut run = false;
     loop {
         // just loop steps forever
@@ -73,5 +82,20 @@ pub fn debug(rom_name: &str) {
             }
             Some(Interaction::Run) => run = true
         }
+    }
+}
+
+
+/// Runs a rom file with GUI and all
+pub fn run(rom_name: &str) {
+    let mut console = get_console(rom_name);
+    let mut opts = WindowOptions::default();
+    opts.scale = Scale::X4;
+    let mut window = Window::new(
+        "Test - ESC to exit", 256, 240, opts
+    ).expect("Couldn't make window");
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        console.update_window(&mut window);
     }
 }
