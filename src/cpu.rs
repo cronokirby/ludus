@@ -575,7 +575,7 @@ impl CPU {
             }
             // INC
             0xE6 | 0xF6 | 0xEE | 0xFE => {
-                let value = self.read(address) + 1;
+                let value = self.read(address).wrapping_add(1);
                 self.write(address, value);
                 self.set_zn(value);
             }
@@ -595,7 +595,7 @@ impl CPU {
             0x4C | 0x6C => self.pc = address,
             // JSR
             0x20 => {
-                let minus = self.pc - 1;
+                let minus = self.pc.wrapping_sub(1);
                 self.push16(minus);
                 self.pc = address;
             }
@@ -708,7 +708,7 @@ impl CPU {
                 self.pc = self.pull16();
             }
             // RTS
-            0x60 => self.pc = self.pull16() + 1,
+            0x60 => self.pc = self.pull16().wrapping_add(1),
             // SBC
             0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => {
                 let a = self.a;
