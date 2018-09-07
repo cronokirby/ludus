@@ -441,6 +441,24 @@ impl CPU {
                 self.a = a;
                 self.set_zn(a);
             }
+            // ASL
+            0x0A | 0x06 | 0x16 | 0x0E | 0x1E => {
+                match addressing {
+                    Addressing::Accumulator => {
+                        self.c = (self.a >> 7) & 1;
+                        let a = self.a << 1;
+                        self.a = a;
+                        self.set_zn(a);
+                    }
+                   _ => {
+                        let mut value = self.read(address);
+                        self.c = (value >> 7) & 1;
+                        value <<= 1;
+                        self.write(address, value);
+                        self.set_zn(value);
+                    }
+                }
+            }
             // BCC
             0x90 => {
                 if self.c == 0 {
