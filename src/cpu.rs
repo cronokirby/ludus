@@ -655,6 +655,18 @@ impl CPU {
                 let p = self.pull();
                 self.set_flags((p & 0xEF) | 0x20);
             }
+            // ROL
+            0x2A | 0x26 | 0x36 | 0x2E | 0x3E => {
+                match addressing {
+                    Addressing::Accumulator => {
+                        let c = self.c;
+                        self.c = (self.a >> 7) & 1;
+                        let a = (self.a << 1) | c;
+                        self.a = a;
+                        self.set_zn(a);
+                    }
+                }
+            }
             // ROR
             0x6A | 0x66 | 0x76 | 0x6E | 0x7E => {
                 match addressing {
