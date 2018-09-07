@@ -738,6 +738,11 @@ impl CPU {
                 let x = self.x;
                 self.write(address, x);
             }
+            // STY
+            0x84 | 0x94 | 0x8C => {
+                let y = self.y;
+                self.write(address, y);
+            }
             // TAX
             0xAA => {
                 let a = self.a;
