@@ -1,4 +1,4 @@
-use super::super::cart::Cart;
+use super::super::cart::{Cart, Mirroring};
 use super::Mapper;
 
 
@@ -32,6 +32,10 @@ impl Mapper for Mapper0 {
                 panic!("ABORT: Mapper0 unhandled address: {:X}", a);
             }
         }
+    }
+
+    fn mirroring_mode(&self) -> Mirroring {
+        self.cart.mirroring.clone()
     }
 
     fn write(&mut self, address: u16, value: u8) {

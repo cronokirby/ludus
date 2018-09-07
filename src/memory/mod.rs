@@ -1,12 +1,13 @@
 mod mapper0;
 
-use super::cart::{Cart, CartReadingError};
+use super::cart::{Cart, CartReadingError, Mirroring};
 use self::mapper0::Mapper0;
 
 
 /// Used to abstract over the different types of Mappers
 pub trait Mapper {
     fn read(&self, address: u16) -> u8;
+    fn mirroring_mode(&self) -> Mirroring;
     fn write(&mut self, address: u16, value: u8);
 }
 
@@ -27,7 +28,7 @@ pub struct MemoryBus {
     // Contains the mapper logic for interfacing with the cart
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
-    mapper: Box<Mapper>,
+    pub mapper: Box<Mapper>,
     ram: [u8; 0x2000]
 }
 
@@ -79,5 +80,10 @@ impl MemoryBus {
                 panic!("Unhandled CPU write at {:X}", a);
             }
         }
+    }
+
+    /// Reads from CHR rom with an address < 0x2000
+    pub fn read_chr(&self, address: u16) -> u8 {
+        self.mapper.read(address)
     }
 }

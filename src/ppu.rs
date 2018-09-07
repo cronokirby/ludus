@@ -120,6 +120,29 @@ impl PPU {
         self.write_oam_address(0);
     }
 
+    // Sometimes we need to read without being able to generate our own
+    // reference to mem
+    fn read_with(&self, mem: &mut MemoryBus, address: u16) -> u8 {
+        let wrapped = address % 0x4000;
+        match wrapped {
+            a if a < 0x2000 => mem.read_chr(a),
+            a if a < 0x3F00 => {
+                let adr = mem.mapper.mirroring_mode().mirror_address(a);
+                let wrapped = adr % 0x800;
+                self.nametables[wrapped as usize]
+            }
+            a if a < 0x4000 => self.read_palette(a % 32),
+            a => {
+                panic!("Unhandled PPU read at {:X}", a);
+            }
+        }
+    }
+
+    fn read(&mut self, address: u16) -> u8 {
+        let mut mem = self.mem.borrow_mut();
+        self.read_with(&mut mem, address)
+    }
+
     fn write_control(&mut self, value: u8) {
         self.flg_nametable = value & 3;
         self.flg_increment = (value >> 2) & 1;
@@ -153,5 +176,59 @@ impl PPU {
 
     fn write_oam_address(&mut self, value: u8) {
         self.oam_address = value;
+    }
+
+    // address in 0..32
+    fn read_palette(&self, address: u16) -> u8 {
+        let mirrored = if address >= 16 && address % 4 == 0 {
+            address - 16
+        } else {
+            address
+        };
+        self.palettes[mirrored as usize]
+    }
+
+    // The memory bus is passed since the spu is calling this
+    pub fn read_register(&mut self, mem: &mut MemoryBus, address: u16) -> u8 {
+        match address {
+            0x2002 => self.read_status(),
+            0x2004 => self.read_oam_data(),
+            0x2007 => self.read_data(mem),
+            _ => 0
+        }
+    }
+
+    fn read_status(&mut self) -> u8 {
+        let mut result = self.register & 0x1F;
+        result |= self.flg_spriteoverflow << 5;
+        result |= self.flg_sprite0hit << 6;
+        if self.nmi_occurred {
+            result |= 1 << 7;
+        }
+        self.nmi_occurred = false;
+        self.nmi_change();
+        self.w = 0;
+        result
+    }
+
+    fn read_oam_data(&self) -> u8 {
+        self.oam[self.oam_address as usize]
+    }
+
+    fn read_data(&mut self, mem: &mut MemoryBus) -> u8 {
+        let mut value = self.read_with(mem, self.v);
+        if self.v % 0x4000 < 0x3F00 {
+            let buffer = self.buffer_data;
+            self.buffer_data = value;
+            value = buffer;
+        } else {
+            self.buffer_data = self.read_with(mem, self.v - 0x1000)
+        }
+        if self.flg_increment == 0 {
+            self.v += 1;
+        } else {
+            self.v += 32;
+        }
+        value
     }
 }

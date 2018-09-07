@@ -6,7 +6,7 @@ pub enum CartReadingError {
 }
 
 /// Represents the type of mirroring present on a cartridge
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Mirroring {
     Horizontal,
     Vertical
@@ -28,6 +28,23 @@ impl Mirroring {
             Mirroring::Horizontal => false,
             Mirroring::Vertical => true
         }
+    }
+
+    /// Mirrors an address >= 0x2000
+    pub fn mirror_address(&self, address: u16) -> u16 {
+        let address = (address - 0x2000) % 0x1000;
+        let table = match (self, address / 0x0400) {
+            (Mirroring::Horizontal, 0) => 0,
+            (Mirroring::Horizontal, 1) => 0,
+            (Mirroring::Horizontal, 2) => 1,
+            (Mirroring::Horizontal, 3) => 1,
+            (Mirroring::Vertical, 0) => 0,
+            (Mirroring::Vertical, 1) => 1,
+            (Mirroring::Vertical, 2) => 0,
+            (Mirroring::Vertical, 3) => 1,
+            _ => 0
+        };
+        0x2000 + table * 0x4000 + (address % 0x0400)
     }
 }
 
