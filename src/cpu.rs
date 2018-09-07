@@ -505,6 +505,12 @@ impl CPU {
                 let a = self.a;
                 self.compare(a, value);
             }
+            // EOR
+            0x49 | 0x45 | 0x55 | 0x4D | 0x5D | 0x59 | 0x41 | 0x51 => {
+                let a = self.a ^ self.read(address);
+                self.a = a;
+                self.set_zn(a);
+            }
             // JMP
             0x4C | 0x6C => self.pc = address,
             // JSR

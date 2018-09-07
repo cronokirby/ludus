@@ -76,7 +76,7 @@ impl MemoryBus {
             }
             a if a >= 0x6000 => self.mapper.write(address, value),
             a => {
-                panic!("Unhandled CPU write at {:X}");
+                panic!("Unhandled CPU write at {:X}", a);
             }
         }
     }
