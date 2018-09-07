@@ -524,6 +524,12 @@ impl CPU {
                 let a = self.a;
                 self.compare(a, value);
             }
+            // CPY
+            0xC0 | 0xC4 | 0xCC => {
+                let value = self.read(address);
+                let y = self.y;
+                self.compare(y, value);
+            }
             // EOR
             0x49 | 0x45 | 0x55 | 0x4D | 0x5D | 0x59 | 0x41 | 0x51 => {
                 let a = self.a ^ self.read(address);
