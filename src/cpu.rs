@@ -667,6 +667,18 @@ impl CPU {
                 self.y = a;
                 self.set_zn(a);
             }
+            // TXA
+            0x8A => {
+                let x = self.x;
+                self.a = x;
+                self.set_zn(x);
+            }
+            // TYA
+            0x98 => {
+                let y = self.y;
+                self.a = y;
+                self.set_zn(y);
+            }
             _ => panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
