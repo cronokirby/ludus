@@ -550,6 +550,12 @@ impl CPU {
                 self.x = a;
                 self.set_zn(a);
             }
+            // LDY
+            0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => {
+                let y = self.read(address);
+                self.y = y;
+                self.set_zn(y);
+            }
             // NOP
             0xEA => {},
             // ORA
