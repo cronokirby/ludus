@@ -3,6 +3,7 @@ use super::memory::{Mapper, MemoryBus};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+
 type VBuffer = [u32; 256 * 240];
 
 /// Represents openly modifiable PPU state
