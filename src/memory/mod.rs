@@ -55,6 +55,7 @@ impl MemoryBus {
                 let adr = 0x2000 + a % 8;
                 self.ppustate.read_register(&self.mapper, adr)
             }
+            0x4014 => self.ppustate.read_register(&self.mapper, 0x4014),
             0x4016 => {
                 panic!("Unimplemented Controller1 Read");
             }
@@ -73,6 +74,11 @@ impl MemoryBus {
     pub fn cpu_write(&mut self, address: u16, value: u8) {
         match address {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize] = value,
+            a if a < 0x4000 => {
+                let adr = 0x2000 + a % 8;
+                self.ppustate.write_register(&mut self.mapper, adr, value);
+            }
+            0x4014 => self.write_dma(value),
             a if a < 0x4016 => {
                 panic!("Unimplemented PPU write at {:X}", a);
             }
@@ -86,6 +92,16 @@ impl MemoryBus {
             a => {
                 panic!("Unhandled CPU write at {:X}", a);
             }
+        }
+    }
+
+    fn write_dma(&mut self, value: u8) {
+        let mut address = (value as u16) << 8;
+        for _ in 0..256 {
+            let oam_address = self.ppustate.oam_address as usize;
+            self.ppustate.oam[oam_address] = self.cpu_read(address);
+            self.ppustate.oam_address += 1;
+            address += 1;
         }
     }
 }

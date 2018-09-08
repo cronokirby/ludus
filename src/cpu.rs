@@ -280,6 +280,10 @@ impl CPU {
     }
 
     fn write(&mut self, address: u16, value: u8) {
+        // handle DMA write stalling
+        if address == 0x4014 {
+            self.stall += 512;
+        }
         self.mem.borrow_mut().cpu_write(address, value);
     }
 

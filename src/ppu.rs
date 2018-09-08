@@ -8,13 +8,15 @@ type VBuffer = [u32; 256 * 240];
 
 /// Represents openly modifiable PPU state
 pub struct PPUState {
-    oam: [u8; 0xFF],
+    pub oam: [u8; 0xFF], // public to allow cpu DMA transfer
     /// Current vram address (15 bit)
     pub v: u16, // Public for access during CPU IO reading
     /// Temporary vram address (15 bit)
     t: u16,
     /// Write toggle (1 bit)
     w: u8,
+    /// Fine x scroll (3 bit)
+    x: u8,
     register: u8,
     // Nmi flags
     nmi_occurred: bool,
@@ -59,7 +61,7 @@ pub struct PPUState {
     flg_spriteoverflow: u8,
 
     // $2003 OAMADDR
-    oam_address: u8,
+    pub oam_address: u8, // Pub for DMA transfer
 
     // $2007 PPUDATA
     pub buffer_data: u8, // Pub for Bus access during CPU IO
@@ -68,7 +70,7 @@ pub struct PPUState {
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
-            oam: [0; 0xFF], v: 0, t: 0, w: 0,
+            oam: [0; 0xFF], v: 0, t: 0, w: 0, x: 0,
             register: 0,
             nmi_occurred: false, nmi_output: false,
             nmi_previous: false, nmi_delay: 0,
@@ -139,6 +141,24 @@ impl PPUState {
         value
     }
 
+    pub fn write_register(
+        &mut self, mapper: &mut Box<Mapper>,
+        address: u16, value: u8)
+    {
+        self.register = value;
+        match address {
+            0x2000 => self.write_control(value),
+            0x2001 => self.write_mask(value),
+            0x2003 => self.write_oam_address(value),
+            0x2004 => self.write_oam_data(value),
+            0x2005 => self.write_scroll(value),
+            0x2006 => self.write_address(value),
+            0x2007 => self.write_data(mapper, value),
+            // This case can never be reached, since the address is % 8,
+            _ => {}
+        }
+    }
+
     fn write_control(&mut self, value: u8) {
         self.flg_nametable = (value >> 0) & 3;
         self.flg_increment = (value >> 2) & 1;
@@ -164,6 +184,45 @@ impl PPUState {
     fn write_oam_address(&mut self, value: u8) {
         self.oam_address = value;
     }
+
+    fn write_oam_data(&mut self, value: u8) {
+        let a = self.oam_address as usize;
+        self.oam[a] = value;
+        self.oam_address += 1;
+    }
+
+    fn write_scroll(&mut self, value: u8) {
+        if self.w == 0 {
+            self.t = (self.t & 0xFFE0) | ((value as u16) >> 3);
+            self.x = value & 0x7;
+            self.w = 1;
+        } else {
+            self.t = (self.t & 0x8FFF) | (((value as u16) & 0x7) << 12);
+            self.t = (self.t & 0xFC1F) | (((value as u16) & 0xF8) << 2);
+            self.w = 0;
+        }
+    }
+
+    fn write_address(&mut self, value: u8) {
+        if self.w == 0 {
+            self.t = (self.t & 0x80FF) | (((value as u16) & 0x3F) << 8);
+            self.w = 1;
+        } else {
+            self.t = (self.t & 0xFF00) | (value as u16);
+            self.v = self.t;
+            self.w = 0;
+        }
+    }
+
+    fn write_data(&mut self, mapper: &mut Box<Mapper>, value: u8) {
+        let v = self.v;
+        mapper.write(v, value);
+        if self.flg_increment == 0 {
+            self.v += 1;
+        } else {
+            self.v += 32;
+        }
+    }
 }
 
 /// Represents the PPU
@@ -177,8 +236,6 @@ pub struct PPU {
     front: Box<VBuffer>,
     back: Box<VBuffer>,
 
-    /// Fine x scroll (3 bit)
-    x: u8,
     /// Even / odd frame flag (1 bit)
     f: u8,
     // Sprite temp variables
@@ -199,7 +256,7 @@ impl PPU {
             palettes: [0; 32], nametables: [0; 0x800],
             front: Box::new([0xF00000FF; 256 * 240]),
             back: Box::new([0xF00000FF; 256 * 240]),
-            x: 0, f: 0,
+            f: 0,
             sprite_count: 0,
             sprite_patterns: [0; 8], sprite_positions: [0; 8],
             sprite_priorities: [0; 8], sprite_indices: [0; 8],
