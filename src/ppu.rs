@@ -43,7 +43,7 @@ pub struct PPUState {
     flg_grayscale: u8,
     // 0: hide, 1: show
     flg_showleftbg: u8,
-    // 0: hide, 1: show
+    // 0: hide, 1: sho
     flg_showleftsprites: u8,
     // 0: hide, 1: show
     flg_showbg: u8,
@@ -134,9 +134,9 @@ impl PPUState {
             self.buffer_data = read;
         }
         if self.flg_increment == 0 {
-            self.v += 1;
+            self.v = self.v.wrapping_add(1);
         } else {
-            self.v += 32;
+            self.v = self.v.wrapping_add(32);
         }
         value
     }
@@ -188,7 +188,7 @@ impl PPUState {
     fn write_oam_data(&mut self, value: u8) {
         let a = self.oam_address as usize;
         self.oam[a] = value;
-        self.oam_address += 1;
+        self.oam_address = self.oam_address.wrapping_add(1);
     }
 
     fn write_scroll(&mut self, value: u8) {
@@ -218,10 +218,44 @@ impl PPUState {
         let v = self.v;
         mapper.write(v, value);
         if self.flg_increment == 0 {
-            self.v += 1;
+            self.v = self.v.wrapping_add(1);
         } else {
-            self.v += 32;
+            self.v = self.v.wrapping_add(32);
         }
+    }
+
+    fn copy_y(&mut self) {
+        self.v = (self.v & 0x841F) | (self.t & 0x7BE0);
+    }
+
+    fn increment_x(&mut self) {
+        if self.v & 0x001F == 31 {
+            self.v &= 0xFFE0;
+            self.v ^= 0x0400;
+        } else {
+            self.v = self.v.wrapping_add(1);
+        }
+    }
+
+    fn increment_y(&mut self) {
+        if self.v & 0x7000 != 0x7000 {
+            self.v = self.v.wrapping_add(0x1000);
+        } else {
+            self.v &= 0x8FFF;
+            let y = match (self.v & 0x3E0) >> 5 {
+                29 => {
+                    self.v ^= 0x800;
+                    0
+                }
+                31 => 0,
+                val => val + 1
+            };
+            self.v = (self.v & 0xFC1F) | (y << 5);
+        }
+    }
+
+    fn copy_x(&mut self) {
+        self.v = (self.v & 0xFBE0) | (self.t & 0x41F);
     }
 }
 
@@ -411,6 +445,20 @@ impl PPU {
                     7 => self.fetch_hightile_byte(m),
                     0 => self.store_tiledata(m),
                     _ => {}
+                }
+            }
+            if preline && self.cycle >= 280 && self.cycle <= 304 {
+                m.ppu.copy_y();
+            }
+            if renderline {
+                if fetch_cycle && self.cycle % 8 == 0 {
+                    m.ppu.increment_x();
+                }
+                if self.cycle == 256 {
+                    m.ppu.increment_y();
+                }
+                if self.cycle == 257 {
+                    m.ppu.copy_x();
                 }
             }
         }
