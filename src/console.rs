@@ -5,9 +5,6 @@ use super::ppu::PPU;
 
 use super::minifb::Window;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 
 /// Used to act as an owner of everything needed to run a game
 /// Is also responsible for holding ram,

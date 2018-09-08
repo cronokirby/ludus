@@ -2,9 +2,6 @@ use super::memory::{Mapper, MemoryBus};
 
 use super::minifb::Window;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 
 type VBuffer = [u32; 256 * 240];
 
@@ -314,7 +311,7 @@ impl PPUState {
             self.v &= 0xFFE0;
             self.v ^= 0x0400;
         } else {
-            self.v = self.v.wrapping_add(1);
+            self.v += 1;
         }
     }
 
@@ -373,8 +370,8 @@ impl PPU {
     pub fn new(m: &mut MemoryBus) -> Self {
         let mut ppu = PPU {
             cycle: 0, scanline: 0,
-            front: Box::new([0xF00000FF; 256 * 240]),
-            back: Box::new([0xF00000FF; 256 * 240]),
+            front: Box::new([0xFF000000; 256 * 240]),
+            back: Box::new([0xFF000000; 256 * 240]),
             is_front: true,
             nametable_byte: 0, attributetable_byte: 0,
             lowtile_byte: 0, hightile_byte: 0,
@@ -436,7 +433,7 @@ impl PPU {
         self.hightile_byte = m.ppu.read(&m.mapper, address + 8);
     }
 
-    fn store_tiledata(&mut self, m: &mut MemoryBus) {
+    fn store_tiledata(&mut self) {
         let mut data: u32 = 0;
         for _ in 0..8 {
             let a = self.attributetable_byte;
@@ -463,7 +460,7 @@ impl PPU {
             0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
         } else {
             if attributes & 0x80 == 0x80 {
-                row -= row;
+                row -= 15;
             }
             let table = tile & 1;
             tile &= 0xFE;
@@ -509,16 +506,17 @@ impl PPU {
             let a = m.ppu.oam[i*4 + 2];
             let x = m.ppu.oam[i*4 + 3];
             let row = self.scanline - (y as i32);
-            if !(row < 0 || row >= h) {
-                if count < 8 {
-                    let pattern = self.fetch_sprite_pattern(m, i, row);
-                    self.sprite_patterns[count] = pattern;
-                    self.sprite_positions[count] = x;
-                    self.sprite_priorities[count] = (a >> 5) & 1;
-                    self.sprite_indices[count] = i as u8;
-                }
-                count += 1;
+            if row < 0 || row >= h {
+                continue;
             }
+            if count < 8 {
+                let pattern = self.fetch_sprite_pattern(m, i, row);
+                self.sprite_patterns[count] = pattern;
+                self.sprite_positions[count] = x;
+                self.sprite_priorities[count] = (a >> 5) & 1;
+                self.sprite_indices[count] = i as u8;
+            }
+            count += 1;
         }
         if count > 8 {
             count = 8;
@@ -636,7 +634,7 @@ impl PPU {
                     3 => self.fetch_attributetable_byte(m),
                     5 => self.fetch_lowtile_byte(m),
                     7 => self.fetch_hightile_byte(m),
-                    0 => self.store_tiledata(m),
+                    0 => self.store_tiledata(),
                     _ => {}
                 }
             }

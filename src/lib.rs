@@ -97,16 +97,11 @@ pub fn run(rom_name: &str) {
     ).expect("Couldn't make window");
 
     let mut old = Instant::now();
-    let mut enter = false;
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
         let enter_down = window.is_key_down(Key::Enter);
-        if !enter && enter_down {
-       //     console.step_frame();
-        }
-        enter = enter_down;
         console.step_micros(duration.subsec_micros());
         console.update_window(&mut window);
     }

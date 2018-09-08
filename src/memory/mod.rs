@@ -75,7 +75,7 @@ impl MemoryBus {
                 self.mapper.read(address)
             }
             a => {
-                0//panic!("Unhandled CPU read at {:X}", a);
+                panic!("Unhandled CPU read at {:X}", a);
             }
         }
     }
