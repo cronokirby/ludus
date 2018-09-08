@@ -377,7 +377,7 @@ impl CPU {
         }
         let mut cycles = 0;
         let interrupt = {
-            let cpustate = &mut self.mem.borrow_mut().cpustate;
+            let cpustate = &mut self.mem.borrow_mut().cpu;
             let i = cpustate.interrupt.clone();
             cpustate.clear_interrupt();
             i

@@ -270,10 +270,10 @@ impl PPU {
     pub fn reset(&mut self) {
         self.cycle = 340;
         self.scanline =  240;
-        let ppus = &mut self.mem.borrow_mut().ppustate;
-        ppus.write_control(0);
-        ppus.write_mask(0);
-        ppus.write_oam_address(0);
+        let m = &mut self.mem.borrow_mut();
+        m.ppu.write_control(0);
+        m.ppu.write_mask(0);
+        m.ppu.write_oam_address(0);
     }
 
     /// Steps the ppu forward
@@ -282,13 +282,31 @@ impl PPU {
     }
 
     fn tick(&mut self) {
-        let mut mem = self.mem.borrow_mut();
-        let ppus = &mut mem.ppustate;
-        let cpus = &mut mem.cpustate;
-        if ppus.nmi_delay > 0 {
-            ppus.nmi_delay -= 1;
-            if ppus.nmi_delay == 0 && ppus.nmi_output && ppus.nmi_occurred {
-                cpustate.set_nmi();
+        let mut m = self.mem.borrow_mut();
+        if m.ppu.nmi_delay > 0 {
+            m.ppu.nmi_delay -= 1;
+            let was_nmi = m.ppu.nmi_output && m.ppu.nmi_occurred;
+            if m.ppu.nmi_delay == 0 && was_nmi {
+                m.cpu.set_nmi();
+            }
+        }
+
+        if m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0 {
+            if self.f == 1 && self.scanline == 261 && self.cycle == 339 {
+                self.cycle = 0;
+                self.scanline = 0;
+                self.f ^= 1;
+                return
+            }
+        }
+
+        self.cycle += 1;
+        if self.cycle > 340 {
+            self.cycle = 0;
+            self.scanline += 1;
+            if self.scanline > 261 {
+                self.scanline = 0;
+                self.f ^= 1;
             }
         }
     }

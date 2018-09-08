@@ -31,8 +31,8 @@ pub struct MemoryBus {
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
     pub mapper: Box<Mapper>,
-    pub cpustate: CPUState,
-    pub ppustate: PPUState,
+    pub cpu: CPUState,
+    pub ppu: PPUState,
     ram: [u8; 0x2000]
 }
 
@@ -44,8 +44,8 @@ impl MemoryBus {
         cart_res.and_then(|cart| Mapper::with_cart(cart).map(|mapper| {
             MemoryBus {
                 mapper,
-                cpustate: CPUState::new(),
-                ppustate: PPUState::new(),
+                cpu: CPUState::new(),
+                ppu: PPUState::new(),
                 ram: [0; 0x2000]
             }
         }))
@@ -56,9 +56,9 @@ impl MemoryBus {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize],
             a if a < 0x4000 => {
                 let adr = 0x2000 + a % 8;
-                self.ppustate.read_register(&self.mapper, adr)
+                self.ppu.read_register(&self.mapper, adr)
             }
-            0x4014 => self.ppustate.read_register(&self.mapper, 0x4014),
+            0x4014 => self.ppu.read_register(&self.mapper, 0x4014),
             0x4016 => {
                 panic!("Unimplemented Controller1 Read");
             }
@@ -79,7 +79,7 @@ impl MemoryBus {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize] = value,
             a if a < 0x4000 => {
                 let adr = 0x2000 + a % 8;
-                self.ppustate.write_register(&mut self.mapper, adr, value);
+                self.ppu.write_register(&mut self.mapper, adr, value);
             }
             0x4014 => self.write_dma(value),
             a if a < 0x4016 => {
@@ -101,9 +101,9 @@ impl MemoryBus {
     fn write_dma(&mut self, value: u8) {
         let mut address = (value as u16) << 8;
         for _ in 0..256 {
-            let oam_address = self.ppustate.oam_address as usize;
-            self.ppustate.oam[oam_address] = self.cpu_read(address);
-            self.ppustate.oam_address += 1;
+            let oam_address = self.ppu.oam_address as usize;
+            self.ppu.oam[oam_address] = self.cpu_read(address);
+            self.ppu.oam_address += 1;
             address += 1;
         }
     }
