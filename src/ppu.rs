@@ -1,5 +1,7 @@
 use super::memory::{Mapper, MemoryBus};
 
+use super::minifb::Window;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -269,6 +271,7 @@ pub struct PPU {
     // These need to boxed to avoid blowing up the stack
     front: Box<VBuffer>,
     back: Box<VBuffer>,
+    is_front: bool,
 
     // Background temporary variables
     nametable_byte: u8,
@@ -284,40 +287,46 @@ pub struct PPU {
     sprite_patterns: [u32; 8],
     sprite_positions: [u8; 8],
     sprite_priorities: [u8; 8],
-    sprite_indices: [u8; 8],
-    /// Shared with the CPU
-    mem: Rc<RefCell<MemoryBus>>
+    sprite_indices: [u8; 8]
+    //mem: Rc<RefCell<MemoryBus>>
 }
 
 impl PPU {
     /// Creates a new PPU
-    pub fn new(mem: Rc<RefCell<MemoryBus>>) -> Self {
+    pub fn new(m: &mut MemoryBus) -> Self {
         let mut ppu = PPU {
             cycle: 0, scanline: 0,
             palettes: [0; 32], nametables: [0; 0x800],
             front: Box::new([0xF00000FF; 256 * 240]),
-            back: Box::new([0xF00000FF; 256 * 240]),
+            back: Box::new([0xF000FFFF; 256 * 240]),
+            is_front: true,
             nametable_byte: 0, attributetable_byte: 0,
             lowtile_byte: 0, hightile_byte: 0,
             tiledata: 0,
             f: 0,
             sprite_count: 0,
             sprite_patterns: [0; 8], sprite_positions: [0; 8],
-            sprite_priorities: [0; 8], sprite_indices: [0; 8],
-            mem
+            sprite_priorities: [0; 8], sprite_indices: [0; 8]
         };
-        ppu.reset();
+        ppu.reset(m);
         ppu
     }
 
     /// Resets the PPU to its initial state
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, m: &mut MemoryBus) {
         self.cycle = 340;
         self.scanline = 240;
-        let m = &mut self.mem.borrow_mut();
         m.ppu.write_control(0);
         m.ppu.write_mask(0);
         m.ppu.write_oam_address(0);
+    }
+
+    pub fn update_window(&self, window: &mut Window) {
+        if self.is_front {
+            window.update_with_buffer(self.front.as_ref());
+        } else {
+            window.update_with_buffer(self.back.as_ref());
+        }
     }
 
     fn read(&self, m: &mut MemoryBus, address: u16) -> u8 {
@@ -420,9 +429,90 @@ impl PPU {
         self.tiledata |= data as u64;
     }
 
+    fn fetch_sprite_pattern(&self, m: &mut MemoryBus,
+        i: usize, mut row: i32) -> u32
+    {
+        let mut tile = m.ppu.oam[i*4 + 1];
+        let attributes = m.ppu.oam[i*4 + 2];
+        let address = if m.ppu.flg_spritesize == 0 {
+            if attributes & 0x80 == 0x80 {
+                row -= 7;
+            }
+            let table = m.ppu.flg_spritetable;
+            0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
+        } else {
+            if attributes & 0x80 == 0x80 {
+                row -= row;
+            }
+            let table = tile & 1;
+            tile &= 0xFE;
+            if row > 7 {
+                tile += 1;
+                row -= 8;
+            }
+            0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
+        };
+        let a = (attributes & 3) << 2;
+        let mut lowtile_byte = self.read(m, address);
+        let mut hightile_byte = self.read(m, address + 8);
+        let mut data: u32 = 0;
+        for _ in 0..8 {
+            let (p1, p2) = if attributes & 0x40 == 0x40 {
+                let p1 = (lowtile_byte & 1) << 0;
+                let p2 = (hightile_byte & 1) << 1;
+                lowtile_byte >>= 1;
+                hightile_byte >>= 1;
+                (p1, p2)
+            } else {
+                let p1 = (lowtile_byte & 0x80) >> 7;
+                let p2 = (hightile_byte & 0x80) >> 6;
+                lowtile_byte <<= 1;
+                hightile_byte <<= 1;
+                (p1, p2)
+            };
+            data <<= 4;
+            data |= (a | p1 | p2) as u32;
+        }
+        data
+    }
+
+    fn evaluate_sprites(&mut self, m: &mut MemoryBus) {
+        let h: i32 = if m.ppu.flg_spritesize == 0 {
+            8
+        } else {
+            16
+        };
+        let mut count = 0;
+        for i in 0..64 {
+            let y = m.ppu.oam[i*4];
+            let a = m.ppu.oam[i*4 + 2];
+            let x = m.ppu.oam[i*4 + 3];
+            let row = self.scanline - (y as i32);
+            if !(row < 0 || row >= h) {
+                if count < 8 {
+                    let pattern = self.fetch_sprite_pattern(m, i, row);
+                    self.sprite_patterns[count] = pattern;
+                    self.sprite_positions[count] = x;
+                    self.sprite_priorities[count] = (a >> 5) & 1;
+                    self.sprite_indices[count] = i as u8;
+                }
+                count += 1;
+            }
+        }
+        if count > 8 {
+            count = 8;
+            m.ppu.flg_spriteoverflow = 1;
+        }
+        self.sprite_count = count as i32;
+    }
+
+    fn set_vblank(&mut self, m: &mut MemoryBus) {
+        self.is_front = !self.is_front;
+    }
+
 
     /// Steps the ppu forward
-    fn do_step(&mut self, m: &mut MemoryBus) {
+    pub fn step(&mut self, m: &mut MemoryBus) {
         self.tick(m);
         let rendering = m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0;
         let preline = self.scanline == 261;
@@ -432,6 +522,7 @@ impl PPU {
         let visible_cycle = self.cycle >= 1 && self.cycle <= 256;
         let fetch_cycle = prefetch_cycle || visible_cycle;
 
+        // Background logic
         if rendering {
             if visibleline && visible_cycle {
                 // self.render_pixel()
@@ -461,6 +552,22 @@ impl PPU {
                     m.ppu.copy_x();
                 }
             }
+        }
+
+        // Sprite logic
+        if rendering {
+            if self.cycle == 257 {
+                if visibleline {
+                    self.evaluate_sprites(m);
+                } else {
+                    self.sprite_count = 0;
+                }
+            }
+        }
+
+        // Vblank logic
+        if self.scanline == 241 && self.cycle == 1 {
+            self.set_vblank(m);
         }
     }
 

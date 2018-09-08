@@ -21,18 +21,20 @@ impl Console {
     pub fn new(rom_buffer: &[u8]) -> Result<Self, CartReadingError> {
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
-        mem_res.map(|memory| {
-            // this is done now because we need ram to be available
-            let mem = Rc::new(RefCell::new(memory));
-            let mem2 = mem.clone();
-            let cpu = CPU::new(mem);
-            let ppu = PPU::new(mem2);
+        mem_res.map(|mut memory| {
+            let ppu = PPU::new(&mut memory);
+            let cpu = CPU::new(memory);
             Console { cpu, ppu }
         })
     }
 
     pub fn step(&mut self) -> i32 {
-        self.cpu.step()
+        let cpucycles = self.cpu.step();
+        let m = &mut self.cpu.mem;
+        for _ in 0..cpucycles * 3 {
+            self.ppu.step(m);
+        }
+        cpucycles
     }
 
     pub fn step_micros(&mut self, micros: u32) {
@@ -44,8 +46,7 @@ impl Console {
     }
 
     pub fn update_window(&self, window: &mut Window) {
-        let buffer = [0xFF0000FF; 256 * 240];
-        window.update_with_buffer(&buffer).unwrap();
+        self.ppu.update_window(window);
     }
 
     /// Steps the console forward printing debug information

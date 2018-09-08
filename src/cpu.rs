@@ -222,12 +222,12 @@ pub struct CPU {
     /// Used to request the CPU stall, mainly for timing purposes
     stall: i32,
     /// Shared acess to the memory bus along with the ppu,
-    mem: Rc<RefCell<MemoryBus>>
+    pub mem: MemoryBus
 }
 
 impl CPU {
     /// Creates a new CPU
-    pub fn new(mem: Rc<RefCell<MemoryBus>>) -> Self {
+    pub fn new(mem: MemoryBus) -> Self {
         let mut cpu = CPU {
             pc: 0, sp: 0, a: 0, x: 0, y: 0, c: 0,
             z: 0, i: 0, d: 0, b: 0, u: 0, v: 0, n: 0,
@@ -269,7 +269,7 @@ impl CPU {
     }
 
     pub fn read(&mut self, address: u16) -> u8 {
-        self.mem.borrow_mut().cpu_read(address)
+        self.mem.cpu_read(address)
     }
 
     pub fn read16(&mut self, address: u16) -> u16 {
@@ -291,7 +291,7 @@ impl CPU {
         if address == 0x4014 {
             self.stall += 512;
         }
-        self.mem.borrow_mut().cpu_write(address, value);
+        self.mem.cpu_write(address, value);
     }
 
     fn push(&mut self, value: u8) {
@@ -377,7 +377,7 @@ impl CPU {
         }
         let mut cycles = 0;
         let interrupt = {
-            let cpustate = &mut self.mem.borrow_mut().cpu;
+            let cpustate = &mut self.mem.cpu;
             let i = cpustate.interrupt.clone();
             cpustate.clear_interrupt();
             i
