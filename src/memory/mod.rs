@@ -1,9 +1,8 @@
-mod mapper0;
+mod mapper2;
 
 use super::cart::{Cart, CartReadingError, Mirroring};
 use super::cpu::CPUState;
 use super::ppu::PPUState;
-use self::mapper0::Mapper0;
 
 
 /// Used to abstract over the different types of Mappers
@@ -18,7 +17,8 @@ impl Mapper {
     /// Returns an error if the mapper is unkown
     pub fn with_cart(cart: Cart) -> Result<Box<Mapper>, CartReadingError> {
         match cart.mapper {
-            0 => Ok(Box::new(Mapper0::new(cart))),
+            0 => Ok(Box::new(mapper2::Mapper2::new(cart))),
+            2 => Ok(Box::new(mapper2::Mapper2::new(cart))),
             m => Err(CartReadingError::UnknownMapper(m))
         }
     }
