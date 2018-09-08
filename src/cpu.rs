@@ -147,6 +147,7 @@ impl Addressing {
 
 
 /// Represents the different types of Interrupts the CPU might deal with
+#[derive(Clone)]
 enum Interrupt {
     NMI,
     IRQ
@@ -163,6 +164,29 @@ fn branch_cycles(pc: u16, address: u16) -> i32 {
     if pages_differ(pc, address) { 2 } else { 1 }
 }
 
+/// Represents public CPU state
+pub struct CPUState {
+    /// Represents the interrupt, None representing no interrupt
+    interrupt: Option<Interrupt>
+}
+
+impl CPUState {
+    pub fn new() -> Self {
+        CPUState { interrupt: None }
+    }
+
+    pub fn set_nmi(&mut self) {
+        self.interrupt = Some(Interrupt::NMI);
+    }
+
+    pub fn set_irq(&mut self) {
+        self.interrupt = Some(Interrupt::IRQ);
+    }
+
+    pub fn clear_interrupt(&mut self) {
+        self.interrupt = None;
+    }
+}
 
 /// Represents possible CPU interrupts
 /// Represents the CPU
@@ -195,9 +219,6 @@ pub struct CPU {
     v: u8,
     /// Negative Flag
     n: u8,
-    // Interrupts are set to be handled on the next CPU step
-    /// Represents the presence of an Interrupt needing to be handled
-    interrupt: Option<Interrupt>,
     /// Used to request the CPU stall, mainly for timing purposes
     stall: i32,
     /// Shared acess to the memory bus along with the ppu,
@@ -207,24 +228,10 @@ pub struct CPU {
 impl CPU {
     /// Creates a new CPU
     pub fn new(mem: Rc<RefCell<MemoryBus>>) -> Self {
-        let pc = 0;
-        let sp = 0;
-        let a = 0;
-        let x = 0;
-        let y = 0;
-        let c = 0;
-        let z = 0;
-        let i = 0;
-        let d = 0;
-        let b = 0;
-        let u = 0;
-        let v = 0;
-        let n = 0;
-        let interrupt = None;
-        let stall = 0;
         let mut cpu = CPU {
-            pc, sp, a, x, y, c, z, i, d, b, u, v, n,
-            interrupt, stall, mem
+            pc: 0, sp: 0, a: 0, x: 0, y: 0, c: 0,
+            z: 0, i: 0, d: 0, b: 0, u: 0, v: 0, n: 0,
+            stall: 0, mem
         };
         cpu.reset();
         cpu
@@ -345,14 +352,6 @@ impl CPU {
         };
     }
 
-    pub fn set_nmi(&mut self) {
-        self.interrupt = Some(Interrupt::NMI);
-    }
-
-    pub fn set_irq(&mut self) {
-        self.interrupt = Some(Interrupt::IRQ);
-    }
-
     fn nmi(&mut self) {
         let pc = self.pc;
         self.push16(pc);
@@ -377,7 +376,13 @@ impl CPU {
             return 1;
         }
         let mut cycles = 0;
-        match self.interrupt {
+        let interrupt = {
+            let cpustate = &mut self.mem.borrow_mut().cpustate;
+            let i = cpustate.interrupt.clone();
+            cpustate.clear_interrupt();
+            i
+        };
+        match interrupt {
             None => {}
             Some(Interrupt::NMI) => {
                 self.nmi();
@@ -388,8 +393,6 @@ impl CPU {
                 cycles += 7;
             }
         }
-        self.interrupt = None;
-
 
         let opcode = {
             let pc = self.pc;

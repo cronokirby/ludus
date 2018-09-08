@@ -275,4 +275,17 @@ impl PPU {
         ppus.write_mask(0);
         ppus.write_oam_address(0);
     }
+
+    /// Steps the ppu forward
+    pub fn step(&mut self) {
+        self.tick();
+    }
+
+    fn tick(&mut self) {
+        let mut mem = self.mem.borrow_mut();
+        let ppus = &mut mem.ppustate;
+        if ppus.nmi_delay > 0 {
+            ppus.nmi_delay -= 1;
+        }
+    }
 }

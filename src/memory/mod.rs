@@ -1,6 +1,7 @@
 mod mapper0;
 
 use super::cart::{Cart, CartReadingError, Mirroring};
+use super::cpu::CPUState;
 use super::ppu::PPUState;
 use self::mapper0::Mapper0;
 
@@ -30,6 +31,7 @@ pub struct MemoryBus {
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
     pub mapper: Box<Mapper>,
+    pub cpustate: CPUState,
     pub ppustate: PPUState,
     ram: [u8; 0x2000]
 }
@@ -42,6 +44,7 @@ impl MemoryBus {
         cart_res.and_then(|cart| Mapper::with_cart(cart).map(|mapper| {
             MemoryBus {
                 mapper,
+                cpustate: CPUState::new(),
                 ppustate: PPUState::new(),
                 ram: [0; 0x2000]
             }
