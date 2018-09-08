@@ -24,7 +24,7 @@ const OP_MODES: [u8; 256] = [
 // The size of each instruction in bytes
 // we sacrifice space to avoid casting
 const OP_SIZES: [u16; 256] = [
-    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
     2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
     3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
     2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
@@ -604,6 +604,8 @@ impl CPU {
             0x18 => self.c = 0,
             // CLD
             0xD8 => self.d = 0,
+            // CLI
+            0x58 => self.i = 0,
             // CLV
             0xB8 => self.v = 0,
             // CMP
