@@ -284,8 +284,12 @@ impl PPU {
     fn tick(&mut self) {
         let mut mem = self.mem.borrow_mut();
         let ppus = &mut mem.ppustate;
+        let cpus = &mut mem.cpustate;
         if ppus.nmi_delay > 0 {
             ppus.nmi_delay -= 1;
+            if ppus.nmi_delay == 0 && ppus.nmi_output && ppus.nmi_occurred {
+                cpustate.set_nmi();
+            }
         }
     }
 }
