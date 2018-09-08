@@ -8,9 +8,29 @@ use std::rc::Rc;
 
 type VBuffer = [u32; 256 * 240];
 
+const PALETTE: [u32; 64] = [
+    0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F,
+    0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00,
+    0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17,
+    0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3,
+    0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F,
+    0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B,
+    0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD,
+    0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B,
+    0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898,
+    0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF,
+    0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB,
+    0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF,
+    0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000
+];
+
+
 /// Represents openly modifiable PPU state
 pub struct PPUState {
-    pub oam: [u8; 0xFF], // public to allow cpu DMA transfer
+    pub oam: [u8; 256], // public to allow cpu DMA transfer
     /// Current vram address (15 bit)
     pub v: u16, // Public for access during CPU IO reading
     /// Temporary vram address (15 bit)
@@ -72,7 +92,7 @@ pub struct PPUState {
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
-            oam: [0; 0xFF], v: 0, t: 0, w: 0, x: 0,
+            oam: [0; 256], v: 0, t: 0, w: 0, x: 0,
             register: 0,
             nmi_occurred: false, nmi_output: false,
             nmi_previous: false, nmi_delay: 0,
@@ -217,7 +237,7 @@ impl PPUState {
     }
 
     fn write_data(&mut self, mapper: &mut Box<Mapper>, value: u8) {
-        let v = self.v;
+        let v = self.v & 0x1FFF; // keep 15 bits of v
         mapper.write(v, value);
         if self.flg_increment == 0 {
             self.v = self.v.wrapping_add(1);
@@ -332,10 +352,10 @@ impl PPU {
     fn read(&self, m: &mut MemoryBus, address: u16) -> u8 {
         let wrapped = address % 0x4000;
         match wrapped {
-            a if a < 0x2000 => m.mapper.read(address),
+            a if a < 0x2000 => m.mapper.read(a),
             a if a < 0x3F00 => {
                 let mode = m.mapper.mirroring_mode();
-                let mirrored = mode.mirror_address(address);
+                let mirrored = mode.mirror_address(a);
                 self.nametables[(mirrored % 0x800) as usize]
             }
             a if a < 0x4000 => {
@@ -350,10 +370,10 @@ impl PPU {
     fn write(&mut self, m: &mut MemoryBus, address: u16, value: u8) {
         let wrapped = address % 0x4000;
         match wrapped {
-            a if a < 0x2000 => m.mapper.write(address, value),
+            a if a < 0x2000 => m.mapper.write(a, value),
             a if a < 0x3F00 => {
                 let mode = m.mapper.mirroring_mode();
-                let mirrored = mode.mirror_address(address);
+                let mirrored = mode.mirror_address(a);
                 self.nametables[(mirrored % 0x800) as usize] = value;
             }
             a if a < 0x4000 => {
@@ -508,8 +528,89 @@ impl PPU {
 
     fn set_vblank(&mut self, m: &mut MemoryBus) {
         self.is_front = !self.is_front;
+        m.ppu.nmi_occurred = true;
+        m.ppu.nmi_change();
     }
 
+    fn clear_vblank(&self, m: &mut MemoryBus) {
+        m.ppu.nmi_occurred = false;
+        m.ppu.nmi_change();
+    }
+
+    fn fetch_tiledata(&self) -> u32 {
+        (self.tiledata >> 32) as u32
+    }
+
+    fn background_pixel(&mut self, m: &mut MemoryBus) -> u8 {
+        if m.ppu.flg_showbg == 0 {
+            0
+        } else {
+            let data = self.fetch_tiledata() >> ((7 - m.ppu.x) * 4);
+            (data & 0x0F) as u8
+        }
+    }
+
+    fn sprite_pixel(&mut self, m: &mut MemoryBus) -> (u8, u8) {
+        if m.ppu.flg_showsprites == 0 {
+            (0, 0)
+        } else {
+            for i in 0..self.sprite_count {
+                let sp_off = self.sprite_positions[i as usize] as i32;
+                let mut offset = (self.cycle - 1) - sp_off;
+                if offset < 0 || offset > 7 {
+                    continue
+                }
+                offset = 7 - offset;
+                let shift = (offset * 4) as u8;
+                let pattern = self.sprite_patterns[i as usize];
+                let color = ((pattern >> shift) & 0x0F) as u8;
+                if color % 4 == 0 {
+                    continue
+                }
+                return (i as u8, color)
+            }
+            (0, 0)
+        }
+    }
+
+    fn render_pixel(&mut self, m: &mut MemoryBus) {
+        let x = self.cycle - 1;
+        let y = self.scanline;
+        let mut background = self.background_pixel(m);
+        let (i, mut sprite) = self.sprite_pixel(m);
+        if x < 8 && m.ppu.flg_showleftbg == 0 {
+            background = 0;
+        }
+        if x < 8 && m.ppu.flg_showleftsprites == 0 {
+            sprite = 0;
+        }
+        let b = background % 4 != 0;
+        let s = sprite % 4 != 0;
+        let color = match (b, s) {
+            (false, false) => 0,
+            (false, true) => sprite | 0x10,
+            (true, false) => background,
+            (true, true) =>  {
+                let ind = i as usize;
+                if self.sprite_indices[ind] == 0 && x < 255 {
+                    m.ppu.flg_sprite0hit = 1;
+                }
+                if self.sprite_priorities[ind] == 0 {
+                    sprite | 0x10
+                } else {
+                    background
+                }
+            }
+        };
+        let c = self.read_palette(color as u16) % 64;
+        let rgba = PALETTE[c as usize];
+        let pos = (x * 256 + y) as usize;
+        if self.is_front {
+            self.back[pos] = rgba;
+        } else {
+            self.front[pos] = rgba;
+        }
+    }
 
     /// Steps the ppu forward
     pub fn step(&mut self, m: &mut MemoryBus) {
@@ -525,7 +626,7 @@ impl PPU {
         // Background logic
         if rendering {
             if visibleline && visible_cycle {
-                // self.render_pixel()
+                self.render_pixel(m)
             }
             if renderline && fetch_cycle {
                 self.tiledata <<= 4;
@@ -568,6 +669,11 @@ impl PPU {
         // Vblank logic
         if self.scanline == 241 && self.cycle == 1 {
             self.set_vblank(m);
+        }
+        if preline && self.cycle == 1 {
+            self.clear_vblank(m);
+            m.ppu.flg_sprite0hit = 0;
+            m.ppu.flg_spriteoverflow = 0;
         }
     }
 

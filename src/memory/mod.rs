@@ -59,11 +59,17 @@ impl MemoryBus {
                 self.ppu.read_register(&self.mapper, adr)
             }
             0x4014 => self.ppu.read_register(&self.mapper, 0x4014),
+            0x4015 => {
+                //panic!("Unimplemented APU read");
+                0
+            }
             0x4016 => {
-                panic!("Unimplemented Controller1 Read");
+                //panic!("Unimplemented Controller1 Read");
+                0
             }
             0x4017 => {
-                panic!("Unimplemented Controller2 Read");
+                //panic!("Unimplemented Controller2 Read");
+                0
             }
             a if a >= 0x6000 => {
                 self.mapper.read(address)
@@ -81,15 +87,18 @@ impl MemoryBus {
                 let adr = 0x2000 + a % 8;
                 self.ppu.write_register(&mut self.mapper, adr, value);
             }
+            a if a < 0x4014 => {
+                //panic!("Unimplemented APU write")
+            }
             0x4014 => self.write_dma(value),
-            a if a < 0x4016 => {
-                panic!("Unimplemented PPU write at {:X}", a);
+            0x4015 => {
+                //panic!("Unimpleemented APU write");
             }
             0x4016 => {
-                panic!("Unimplemented Controller write");
+                //panic!("Unimplemented Controller write");
             }
             0x4017 => {
-                panic!("Unimplemented APU write");
+                //panic!("Unimplemented APU write");
             }
             a if a >= 0x6000 => self.mapper.write(address, value),
             a => {
@@ -103,8 +112,8 @@ impl MemoryBus {
         for _ in 0..256 {
             let oam_address = self.ppu.oam_address as usize;
             self.ppu.oam[oam_address] = self.cpu_read(address);
-            self.ppu.oam_address += 1;
-            address += 1;
+            self.ppu.oam_address = self.ppu.oam_address.wrapping_add(1);
+            address = address.wrapping_add(1);
         }
     }
 }

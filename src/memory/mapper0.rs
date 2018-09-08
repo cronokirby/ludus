@@ -29,7 +29,7 @@ impl Mapper for Mapper0 {
                 self.cart.prg[wrapped_addr as usize]
             }
             a => {
-                panic!("ABORT: Mapper0 unhandled address: {:X}", a);
+                panic!("ABORT: Mapper0 unhandled read address: {:X}", a);
             }
         }
     }
@@ -48,7 +48,7 @@ impl Mapper for Mapper0 {
                 self.cart.prg[wrapped_adr as usize] = value;
             }
             a => {
-                panic!("ABORT: Mapper0 unhandled address {:X}", a);
+                panic!("ABORT: Mapper0 unhandled write address {:X}", a);
             }
         }
     }
