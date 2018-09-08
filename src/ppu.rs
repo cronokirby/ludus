@@ -236,6 +236,13 @@ pub struct PPU {
     front: Box<VBuffer>,
     back: Box<VBuffer>,
 
+    // Background temporary variables
+    nametable_byte: u8,
+    attributetable_byte: u8,
+    lowtile_byte: u8,
+    hightile_byte: u8,
+    tiledata: u64,
+
     /// Even / odd frame flag (1 bit)
     f: u8,
     // Sprite temp variables
@@ -256,6 +263,9 @@ impl PPU {
             palettes: [0; 32], nametables: [0; 0x800],
             front: Box::new([0xF00000FF; 256 * 240]),
             back: Box::new([0xF00000FF; 256 * 240]),
+            nametable_byte: 0, attributetable_byte: 0,
+            lowtile_byte: 0, hightile_byte: 0,
+            tiledata: 0,
             f: 0,
             sprite_count: 0,
             sprite_patterns: [0; 8], sprite_positions: [0; 8],
@@ -269,20 +279,144 @@ impl PPU {
     /// Resets the PPU to its initial state
     pub fn reset(&mut self) {
         self.cycle = 340;
-        self.scanline =  240;
+        self.scanline = 240;
         let m = &mut self.mem.borrow_mut();
         m.ppu.write_control(0);
         m.ppu.write_mask(0);
         m.ppu.write_oam_address(0);
     }
 
-    /// Steps the ppu forward
-    pub fn step(&mut self) {
-        self.tick();
+    fn read(&self, m: &mut MemoryBus, address: u16) -> u8 {
+        let wrapped = address % 0x4000;
+        match wrapped {
+            a if a < 0x2000 => m.mapper.read(address),
+            a if a < 0x3F00 => {
+                let mode = m.mapper.mirroring_mode();
+                let mirrored = mode.mirror_address(address);
+                self.nametables[(mirrored % 0x800) as usize]
+            }
+            a if a < 0x4000 => {
+                self.read_palette(a % 32)
+            }
+            a => {
+                panic!("Unhandled PPU memory read at {:X}", a);
+            }
+        }
     }
 
-    fn tick(&mut self) {
-        let mut m = self.mem.borrow_mut();
+    fn write(&mut self, m: &mut MemoryBus, address: u16, value: u8) {
+        let wrapped = address % 0x4000;
+        match wrapped {
+            a if a < 0x2000 => m.mapper.write(address, value),
+            a if a < 0x3F00 => {
+                let mode = m.mapper.mirroring_mode();
+                let mirrored = mode.mirror_address(address);
+                self.nametables[(mirrored % 0x800) as usize] = value;
+            }
+            a if a < 0x4000 => {
+                self.write_palette(a % 32, value);
+            }
+            a => {
+                panic!("Unhandled PPU memory write at {:X}", a);
+            }
+        }
+    }
+
+    fn read_palette(&self, address: u16) -> u8 {
+        let wrapped = if address >= 16 && address % 4 == 0 {
+            address - 16
+        } else {
+            address
+        };
+        self.palettes[address as usize]
+    }
+
+    fn write_palette(&mut self, address: u16, value: u8) {
+        let wrapped = if address >= 16 && address % 4 == 0 {
+            address - 16
+        } else {
+            address
+        };
+        self.palettes[address as usize] = value;
+    }
+
+
+    fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
+        let v = m.ppu.v;
+        let address = 0x2000 | (v & 0x0FFF);
+        self.nametable_byte = self.read(m, address);
+    }
+
+    fn fetch_attributetable_byte(&mut self, m: &mut MemoryBus) {
+        let v = m.ppu.v;
+        let address = 0x23C0 | (v & 0x0C00)
+            | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
+        let shift = ((v >> 4) & 4) | (v & 2);
+        let read = self.read(m, address);
+        self.attributetable_byte = ((read >> shift) & 3) << 2;
+    }
+
+    fn fetch_lowtile_byte(&mut self, m: &mut MemoryBus) {
+        let fine_y = (m.ppu.v >> 12) & 7;
+        let table = m.ppu.flg_backgroundtable;
+        let tile = self.nametable_byte as u16;
+        let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
+        self.lowtile_byte = self.read(m, address);
+    }
+
+    fn fetch_hightile_byte(&mut self, m: &mut MemoryBus) {
+        let fine_y = (m.ppu.v >> 12) & 7;
+        let table = m.ppu.flg_backgroundtable;
+        let tile = self.nametable_byte as u16;
+        let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
+        self.hightile_byte = self.read(m, address + 8);
+    }
+
+    fn store_tiledata(&mut self, m: &mut MemoryBus) {
+        let mut data: u32 = 0;
+        for _ in 0..8 {
+            let a = self.attributetable_byte;
+            let p1 = (self.lowtile_byte & 0x80) >> 7;
+            let p2 = (self.hightile_byte & 0x80) >> 6;
+            self.lowtile_byte <<= 1;
+            self.hightile_byte <<= 1;
+            data <<= 4;
+            data |= (a | p1 | p2) as u32;
+        }
+        self.tiledata |= data as u64;
+    }
+
+
+    /// Steps the ppu forward
+    fn do_step(&mut self, m: &mut MemoryBus) {
+        self.tick(m);
+        let rendering = m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0;
+        let preline = self.scanline == 261;
+        let visibleline = self.scanline < 240;
+        let renderline = preline || visibleline;
+        let prefetch_cycle = self.cycle >= 321 && self.cycle <= 336;
+        let visible_cycle = self.cycle >= 1 && self.cycle <= 256;
+        let fetch_cycle = prefetch_cycle || visible_cycle;
+
+        if rendering {
+            if visibleline && visible_cycle {
+                // self.render_pixel()
+            }
+            if renderline && fetch_cycle {
+                self.tiledata <<= 4;
+                match self.cycle % 8 {
+                    1 => self.fetch_nametable_byte(m),
+                    3 => self.fetch_attributetable_byte(m),
+                    5 => self.fetch_lowtile_byte(m),
+                    7 => self.fetch_hightile_byte(m),
+                    0 => self.store_tiledata(m),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn tick(&mut self, m: &mut MemoryBus) {
         if m.ppu.nmi_delay > 0 {
             m.ppu.nmi_delay -= 1;
             let was_nmi = m.ppu.nmi_output && m.ppu.nmi_occurred;
