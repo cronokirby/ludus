@@ -32,7 +32,7 @@ const PALETTE: [u32; 64] = [
 pub struct PPUState {
      // Memory
     palettes: [u8; 32],
-    nametables: [u8; 0x800],
+    nametables: [u8; 2048],
     pub oam: [u8; 256], // public to allow cpu DMA transfer
     /// Current vram address (15 bit)
     pub v: u16, // Public for access during CPU IO reading
@@ -95,7 +95,7 @@ pub struct PPUState {
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
-            palettes: [0; 32], nametables: [0; 0x800],
+            palettes: [0; 32], nametables: [0; 2048],
             oam: [0; 256], v: 0, t: 0, w: 0, x: 0,
             register: 0,
             nmi_occurred: false, nmi_output: false,
@@ -128,7 +128,7 @@ impl PPUState {
             a if a < 0x3F00 => {
                 let mode = mapper.mirroring_mode();
                 let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 0x800) as usize]
+                self.nametables[(mirrored % 2048) as usize]
             }
             a if a < 0x4000 => {
                 self.read_palette(a % 32)
@@ -146,7 +146,7 @@ impl PPUState {
             a if a < 0x3F00 => {
                 let mode = mapper.mirroring_mode();
                 let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 0x800) as usize] = value;
+                self.nametables[(mirrored % 2048) as usize] = value;
             }
             a if a < 0x4000 => {
                 self.write_palette(a % 32, value);
@@ -163,7 +163,7 @@ impl PPUState {
         } else {
             address
         };
-        self.palettes[address as usize]
+        self.palettes[wrapped as usize]
     }
 
     fn write_palette(&mut self, address: u16, value: u8) {
@@ -172,7 +172,7 @@ impl PPUState {
         } else {
             address
         };
-        self.palettes[address as usize] = value;
+        self.palettes[wrapped as usize] = value;
     }
 
     /// Needs the wrapper because it might read from CHR data
@@ -245,6 +245,7 @@ impl PPUState {
         self.flg_spritetable = (value >> 3) & 1;
         self.flg_backgroundtable = (value >> 4) & 1;
         self.flg_spritesize = (value >> 5) & 1;
+        self.flg_masterslave = (value >> 6) & 1;
         self.nmi_output = (value >> 7) & 1 == 1;
         self.nmi_change();
         self.t = (self.t & 0xF3FF) | (((value as u16) & 0x03) << 10);

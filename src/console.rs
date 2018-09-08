@@ -45,6 +45,9 @@ impl Console {
         }
     }
 
+    pub fn step_frame(&mut self) {
+        self.step_micros(1_000_000 / 60);
+    }
     pub fn update_window(&self, window: &mut Window) {
         self.ppu.update_window(window);
     }

@@ -859,7 +859,7 @@ impl CPU {
                 self.a = y;
                 self.set_zn(y);
             }
-            _ => panic!("Unimplented Op {:02X}", opcode)
+            _ => {} //panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
     }

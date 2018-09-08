@@ -75,7 +75,7 @@ impl MemoryBus {
                 self.mapper.read(address)
             }
             a => {
-                panic!("Unhandled CPU read at {:X}", a);
+                0//panic!("Unhandled CPU read at {:X}", a);
             }
         }
     }
@@ -112,8 +112,8 @@ impl MemoryBus {
         for _ in 0..256 {
             let oam_address = self.ppu.oam_address as usize;
             self.ppu.oam[oam_address] = self.cpu_read(address);
-            self.ppu.oam_address = self.ppu.oam_address.wrapping_add(1);
-            address = address.wrapping_add(1);
+            self.ppu.oam_address.wrapping_add(1);
+            address += 1;
         }
     }
 }

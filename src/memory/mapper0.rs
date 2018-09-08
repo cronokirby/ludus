@@ -29,6 +29,7 @@ impl Mapper for Mapper0 {
                 let wrapped_addr = (a - 0x8000) % self.prg_size;
                 self.cart.prg[wrapped_addr as usize]
             }
+            a if a >= 0x6000 => self.cart.sram[(a - 0x6000) as usize],
             a => {
                 panic!("ABORT: Mapper0 unhandled read address: {:X}", a);
             }
