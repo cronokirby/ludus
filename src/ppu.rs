@@ -30,6 +30,9 @@ const PALETTE: [u32; 64] = [
 
 /// Represents openly modifiable PPU state
 pub struct PPUState {
+     // Memory
+    palettes: [u8; 32],
+    nametables: [u8; 0x800],
     pub oam: [u8; 256], // public to allow cpu DMA transfer
     /// Current vram address (15 bit)
     pub v: u16, // Public for access during CPU IO reading
@@ -92,6 +95,7 @@ pub struct PPUState {
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
+            palettes: [0; 32], nametables: [0; 0x800],
             oam: [0; 256], v: 0, t: 0, w: 0, x: 0,
             register: 0,
             nmi_occurred: false, nmi_output: false,
@@ -115,6 +119,60 @@ impl PPUState {
             self.nmi_delay = 15;
         }
         self.nmi_previous = nmi;
+    }
+
+    fn read(&self, mapper: &Box<Mapper>, address: u16) -> u8 {
+        let wrapped = address % 0x4000;
+        match wrapped {
+            a if a < 0x2000 => mapper.read(a),
+            a if a < 0x3F00 => {
+                let mode = mapper.mirroring_mode();
+                let mirrored = mode.mirror_address(a);
+                self.nametables[(mirrored % 0x800) as usize]
+            }
+            a if a < 0x4000 => {
+                self.read_palette(a % 32)
+            }
+            a => {
+                panic!("Unhandled PPU memory read at {:X}", a);
+            }
+        }
+    }
+
+    fn write(&mut self, mapper: &mut Box<Mapper>, address: u16, value: u8) {
+        let wrapped = address % 0x4000;
+        match wrapped {
+            a if a < 0x2000 => mapper.write(a, value),
+            a if a < 0x3F00 => {
+                let mode = mapper.mirroring_mode();
+                let mirrored = mode.mirror_address(a);
+                self.nametables[(mirrored % 0x800) as usize] = value;
+            }
+            a if a < 0x4000 => {
+                self.write_palette(a % 32, value);
+            }
+            a => {
+                panic!("Unhandled PPU memory write at {:X}", a);
+            }
+        }
+    }
+
+    fn read_palette(&self, address: u16) -> u8 {
+        let wrapped = if address >= 16 && address % 4 == 0 {
+            address - 16
+        } else {
+            address
+        };
+        self.palettes[address as usize]
+    }
+
+    fn write_palette(&mut self, address: u16, value: u8) {
+        let wrapped = if address >= 16 && address % 4 == 0 {
+            address - 16
+        } else {
+            address
+        };
+        self.palettes[address as usize] = value;
     }
 
     /// Needs the wrapper because it might read from CHR data
@@ -146,19 +204,19 @@ impl PPUState {
 
     fn read_data(&mut self, mapper: &Box<Mapper>) -> u8 {
         let v = self.v;
-        let mut value = mapper.read(v);
+        let mut value = self.read(mapper, v);
         if v % 0x4000 < 0x3F00 {
             let buffer = self.buffer_data;
             self.buffer_data = value;
             value = buffer;
         } else {
-            let read = mapper.read(v.wrapping_sub(0x1000));
+            let read = self.read(&mapper, v - 0x1000);
             self.buffer_data = read;
         }
         if self.flg_increment == 0 {
-            self.v = self.v.wrapping_add(1);
+            self.v += 1;
         } else {
-            self.v = self.v.wrapping_add(32);
+            self.v += 1;
         }
         value
     }
@@ -237,12 +295,12 @@ impl PPUState {
     }
 
     fn write_data(&mut self, mapper: &mut Box<Mapper>, value: u8) {
-        let v = self.v & 0x1FFF; // keep 15 bits of v
-        mapper.write(v, value);
+        let v = self.v;
+        self.write(mapper, v, value);
         if self.flg_increment == 0 {
-            self.v = self.v.wrapping_add(1);
+            self.v += 1;
         } else {
-            self.v = self.v.wrapping_add(32);
+            self.v += 32;
         }
     }
 
@@ -261,7 +319,7 @@ impl PPUState {
 
     fn increment_y(&mut self) {
         if self.v & 0x7000 != 0x7000 {
-            self.v = self.v.wrapping_add(0x1000);
+            self.v += 0x1000;
         } else {
             self.v &= 0x8FFF;
             let y = match (self.v & 0x3E0) >> 5 {
@@ -285,9 +343,7 @@ impl PPUState {
 pub struct PPU {
     cycle: i32,
     scanline: i32,
-    // Memory
-    palettes: [u8; 32],
-    nametables: [u8; 0x800],
+
     // These need to boxed to avoid blowing up the stack
     front: Box<VBuffer>,
     back: Box<VBuffer>,
@@ -316,9 +372,8 @@ impl PPU {
     pub fn new(m: &mut MemoryBus) -> Self {
         let mut ppu = PPU {
             cycle: 0, scanline: 0,
-            palettes: [0; 32], nametables: [0; 0x800],
             front: Box::new([0xF00000FF; 256 * 240]),
-            back: Box::new([0xF000FFFF; 256 * 240]),
+            back: Box::new([0xF00000FF; 256 * 240]),
             is_front: true,
             nametable_byte: 0, attributetable_byte: 0,
             lowtile_byte: 0, hightile_byte: 0,
@@ -349,65 +404,10 @@ impl PPU {
         }
     }
 
-    fn read(&self, m: &mut MemoryBus, address: u16) -> u8 {
-        let wrapped = address % 0x4000;
-        match wrapped {
-            a if a < 0x2000 => m.mapper.read(a),
-            a if a < 0x3F00 => {
-                let mode = m.mapper.mirroring_mode();
-                let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 0x800) as usize]
-            }
-            a if a < 0x4000 => {
-                self.read_palette(a % 32)
-            }
-            a => {
-                panic!("Unhandled PPU memory read at {:X}", a);
-            }
-        }
-    }
-
-    fn write(&mut self, m: &mut MemoryBus, address: u16, value: u8) {
-        let wrapped = address % 0x4000;
-        match wrapped {
-            a if a < 0x2000 => m.mapper.write(a, value),
-            a if a < 0x3F00 => {
-                let mode = m.mapper.mirroring_mode();
-                let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 0x800) as usize] = value;
-            }
-            a if a < 0x4000 => {
-                self.write_palette(a % 32, value);
-            }
-            a => {
-                panic!("Unhandled PPU memory write at {:X}", a);
-            }
-        }
-    }
-
-    fn read_palette(&self, address: u16) -> u8 {
-        let wrapped = if address >= 16 && address % 4 == 0 {
-            address - 16
-        } else {
-            address
-        };
-        self.palettes[address as usize]
-    }
-
-    fn write_palette(&mut self, address: u16, value: u8) {
-        let wrapped = if address >= 16 && address % 4 == 0 {
-            address - 16
-        } else {
-            address
-        };
-        self.palettes[address as usize] = value;
-    }
-
-
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
         let v = m.ppu.v;
         let address = 0x2000 | (v & 0x0FFF);
-        self.nametable_byte = self.read(m, address);
+        self.nametable_byte = m.ppu.read(&m.mapper, address);
     }
 
     fn fetch_attributetable_byte(&mut self, m: &mut MemoryBus) {
@@ -415,7 +415,7 @@ impl PPU {
         let address = 0x23C0 | (v & 0x0C00)
             | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
         let shift = ((v >> 4) & 4) | (v & 2);
-        let read = self.read(m, address);
+        let read = m.ppu.read(&m.mapper, address);
         self.attributetable_byte = ((read >> shift) & 3) << 2;
     }
 
@@ -424,7 +424,7 @@ impl PPU {
         let table = m.ppu.flg_backgroundtable;
         let tile = self.nametable_byte as u16;
         let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
-        self.lowtile_byte = self.read(m, address);
+        self.lowtile_byte = m.ppu.read(&m.mapper, address);
     }
 
     fn fetch_hightile_byte(&mut self, m: &mut MemoryBus) {
@@ -432,7 +432,7 @@ impl PPU {
         let table = m.ppu.flg_backgroundtable;
         let tile = self.nametable_byte as u16;
         let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
-        self.hightile_byte = self.read(m, address + 8);
+        self.hightile_byte = m.ppu.read(&m.mapper, address + 8);
     }
 
     fn store_tiledata(&mut self, m: &mut MemoryBus) {
@@ -473,8 +473,8 @@ impl PPU {
             0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
         };
         let a = (attributes & 3) << 2;
-        let mut lowtile_byte = self.read(m, address);
-        let mut hightile_byte = self.read(m, address + 8);
+        let mut lowtile_byte = m.ppu.read(&m.mapper, address);
+        let mut hightile_byte = m.ppu.read(&m.mapper, address + 8);
         let mut data: u32 = 0;
         for _ in 0..8 {
             let (p1, p2) = if attributes & 0x40 == 0x40 {
@@ -602,9 +602,9 @@ impl PPU {
                 }
             }
         };
-        let c = self.read_palette(color as u16) % 64;
+        let c = m.ppu.read_palette(color as u16) % 64;
         let rgba = PALETTE[c as usize];
-        let pos = (x * 256 + y) as usize;
+        let pos = (y * 256 + x) as usize;
         if self.is_front {
             self.back[pos] = rgba;
         } else {

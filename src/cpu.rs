@@ -240,6 +240,7 @@ impl CPU {
     /// Resets the CPU to its initial powerup state.
     pub fn reset(&mut self) {
         self.pc = self.read16(0xFFFC);
+        println!("{:X}", self.pc);
         self.sp = 0xFD;
         self.set_flags(0x24);
     }
@@ -289,7 +290,7 @@ impl CPU {
     fn write(&mut self, address: u16, value: u8) {
         // handle DMA write stalling
         if address == 0x4014 {
-            self.stall += 512;
+            self.stall += 513;
         }
         self.mem.cpu_write(address, value);
     }
@@ -297,7 +298,7 @@ impl CPU {
     fn push(&mut self, value: u8) {
         let sp = self.sp as u16;
         self.write(0x100 | sp, value);
-        self.sp -= 1;
+        self.sp = self.sp.wrapping_sub(1);
     }
 
     fn push16(&mut self, value: u16) {
@@ -308,7 +309,7 @@ impl CPU {
     }
 
     fn pull(&mut self) -> u8 {
-        self.sp += 1;
+        self.sp = self.sp.wrapping_add(1);
         let sp = self.sp as u16;
         self.read(0x100 | sp)
     }
@@ -437,11 +438,10 @@ impl CPU {
             }
             Addressing::IndirectIndexed => {
                 let pc = self.pc.wrapping_add(1);
-                let read = self.read(pc) as u16;
-                let added = read.wrapping_add(self.y as u16);
-                let address = self.read16bug(added as u16);
-                let old_addr = address.wrapping_sub(self.y as u16);
-                page_crossed = pages_differ(address, old_addr);
+                let next = self.read(pc) as u16;
+                let read = self.read16bug(next);
+                let address = read.wrapping_add(self.y as u16);
+                page_crossed = pages_differ(address, read);
                 address
             }
             Addressing::Relative => {
@@ -594,6 +594,14 @@ impl CPU {
                     self.pc = address;
                     cycles += branch_cycles(pc, address);
                 }
+            }
+            // BRK
+            0x00 => {
+                let pc = self.pc;
+                self.push16(pc);
+                self.php();
+                self.i = 1;
+                self.pc = self.read16(0xFFFE);
             }
             // CLC
             0x18 => self.c = 0,

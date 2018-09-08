@@ -12,8 +12,9 @@ pub struct Mapper0 {
 
 impl Mapper0 {
     pub fn new(cart: Cart) -> Self {
-        // should be either 0x2000 or 0x4000
+        // should be either 0x4000 or 0x8000
         let prg_size = cart.prg.len() as u16;
+        println!("PRGSIZE: {:X}", prg_size);
         Mapper0 { cart, prg_size }
     }
 }
@@ -25,7 +26,7 @@ impl Mapper for Mapper0 {
         match address {
             a if a < 0x2000 => self.cart.chr[a as usize],
             a if a >= 0x8000 => {
-                let wrapped_addr = a % self.prg_size;
+                let wrapped_addr = (a - 0x8000) % self.prg_size;
                 self.cart.prg[wrapped_addr as usize]
             }
             a => {
@@ -44,7 +45,7 @@ impl Mapper for Mapper0 {
                 self.cart.chr[a as usize] = value;
             }
             a if a >= 0x8000 => {
-                let wrapped_adr = a % self.prg_size;
+                let wrapped_adr = (a - 0x8000) % self.prg_size;
                 self.cart.prg[wrapped_adr as usize] = value;
             }
             a => {

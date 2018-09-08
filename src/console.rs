@@ -53,7 +53,10 @@ impl Console {
     pub fn debug_step(&mut self) {
         self.cpu.print_current_op();
         print!(" -> ");
-        self.cpu.step();
+        let cycles = self.cpu.step();
+        for _ in 0..cycles * 3 {
+            self.ppu.step(&mut self.cpu.mem);
+        }
         self.cpu.print_state();
     }
 }
