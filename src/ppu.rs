@@ -271,12 +271,12 @@ impl PPUState {
 
     fn write_scroll(&mut self, value: u8) {
         if self.w == 0 {
-            self.t = (self.t & 0xFFE0) | ((value as u16) >> 3);
+            self.t = (self.t & 0x7FE0) | ((value as u16) >> 3);
             self.x = value & 0x7;
             self.w = 1;
         } else {
-            self.t = (self.t & 0x8FFF) | (((value as u16) & 0x7) << 12);
-            self.t = (self.t & 0xFC1F) | (((value as u16) & 0xF8) << 2);
+            let s1 = ((value as u16) & 0x7) << 12;
+            self.t = (self.t & 0xC1F) | (((value as u16) & 0xF8) << 2) | s1;
             self.w = 0;
         }
     }
