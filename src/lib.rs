@@ -101,6 +101,7 @@ pub fn run(rom_name: &str) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
+        let new_micros = duration.subsec_micros();
         let enter_down = window.is_key_down(Key::Enter);
         console.step_micros(duration.subsec_micros());
         console.update_window(&mut window);

@@ -237,7 +237,6 @@ impl CPU {
     /// Resets the CPU to its initial powerup state.
     pub fn reset(&mut self) {
         self.pc = self.read16(0xFFFC);
-        println!("{:X}", self.pc);
         self.sp = 0xFD;
         self.set_flags(0x24);
     }
@@ -353,6 +352,7 @@ impl CPU {
     fn nmi(&mut self) {
         let pc = self.pc;
         self.push16(pc);
+        self.php();
         self.pc = self.read16(0xFFFA);
         self.i = 1;
     }
@@ -360,6 +360,7 @@ impl CPU {
     fn irq(&mut self) {
         let pc = self.pc;
         self.push16(pc);
+        self.php();
         self.pc = self.read16(0xFFFE);
         self.i = 1;
     }
@@ -858,7 +859,7 @@ impl CPU {
                 self.a = y;
                 self.set_zn(y);
             }
-            _ => {} //panic!("Unimplented Op {:02X}", opcode)
+            _ => panic!("Unimplented Op {:02X}", opcode)
         }
         cycles
     }
