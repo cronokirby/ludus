@@ -90,7 +90,10 @@ impl MemoryBus {
             a if a < 0x4014 => {
                 //panic!("Unimplemented APU write")
             }
-            0x4014 => self.write_dma(value),
+            0x4014 => {
+                self.ppu.write_register(&mut self.mapper, 0x4014, value);
+                self.write_dma(value);
+            }
             0x4015 => {
                 //panic!("Unimpleemented APU write");
             }
