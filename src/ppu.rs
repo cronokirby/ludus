@@ -303,7 +303,8 @@ impl PPUState {
     }
 
     fn copy_y(&mut self) {
-        self.v = (self.v & 0x841F) | (self.t & 0x7BE0);
+        let mask = 0b0111_1011_1110_0000;
+        self.v = (self.v & !mask) | (self.t & mask);
     }
 
     fn increment_x(&mut self) {
@@ -333,7 +334,8 @@ impl PPUState {
     }
 
     fn copy_x(&mut self) {
-        self.v = (self.v & 0xFBE0) | (self.t & 0x41F);
+        let mask = 0b0000_0100_0001_1111;
+        self.v = (self.v & !mask) | (self.t & mask);
     }
 }
 
