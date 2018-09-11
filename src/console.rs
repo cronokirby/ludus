@@ -53,4 +53,9 @@ impl Console {
     pub fn print_cpu(&self) {
         self.cpu.print_state();
     }
+
+    pub fn print_ram(&mut self, address: u16) {
+        let read = self.cpu.read(address);
+        println!("${:X} = {:X}", address, read)
+    }
 }

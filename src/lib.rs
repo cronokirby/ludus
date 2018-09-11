@@ -29,9 +29,16 @@ pub fn disassemble(rom_name: &str) {
 }
 
 
+/// Represents the different kinds of Interactions generated
+/// in a cli debug session.
 enum Interaction {
+    /// Advance the emulator forward
     Advance,
+    /// Print the cpu state
     CPU,
+    /// Gets a value from RAM
+    Ram(u16),
+    /// Run automatically
     Run
 }
 
@@ -44,11 +51,13 @@ fn get_interaction() -> Option<Interaction> {
     match stdin().read_line(&mut input) {
         Err(_) => None,
         Ok(_) => {
-            let s: Vec<_>= input.trim().split_whitespace().collect();
+            let s: Vec<_> = input.trim().split_whitespace().collect();
             match s.as_slice() {
                 [] => Some(Interaction::Advance),
                 ["run"] => Some(Interaction::Run),
                 ["cpu"] => Some(Interaction::CPU),
+                ["ram", s] => u16::from_str_radix(s, 16).ok()
+                    .map(|adr| Interaction::Ram(adr)),
                 _ => None
             }
         }
@@ -90,7 +99,6 @@ pub fn debug(rom_name: &str) {
             run_loop(&mut console, &mut window);
             // Transition back to frame stepping
             run = false;
-            // We need to do this to
         }
         match get_interaction() {
             None => println!("Unknown command"),
@@ -100,6 +108,9 @@ pub fn debug(rom_name: &str) {
             }
             Some(Interaction::CPU) => {
                 console.print_cpu();
+            }
+            Some(Interaction::Ram(adr)) => {
+                console.print_ram(adr);
             }
             Some(Interaction::Run) => run = true
         }

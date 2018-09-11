@@ -269,7 +269,7 @@ impl CPU {
         self.mem.cpu_read(address)
     }
 
-    pub fn read16(&mut self, address: u16) -> u16 {
+    fn read16(&mut self, address: u16) -> u16 {
         let lo = self.read(address) as u16;
         let hi = self.read(address + 1) as u16;
         (hi << 8) | lo
