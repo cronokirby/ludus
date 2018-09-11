@@ -12,7 +12,7 @@ mod tests;
 use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
-use std::io::{Write, Read, stdin, stdout};
+use std::io::{Read, Write, stdin, stdout};
 use std::time::Instant;
 
 
@@ -39,7 +39,7 @@ enum Interaction {
 fn get_interaction() -> Option<Interaction> {
     print!("> ");
     stdout().flush().expect("Couldn't flush stdout");
-    let mut input = String::new()
+    let mut input = String::new();
     match stdin().read_line(&mut input) {
         Err(_) => None,
         Ok(_) => {
@@ -71,21 +71,24 @@ fn get_console(rom_name: &str) -> console::Console {
     })
 }
 
+
+/// Debugs a rom with GUI
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
     opts.scale = Scale::X4;
     let mut window = Window::new(
-        "Test - ESC to exit", 256, 240, opts
+        "Ludus (Debug) - Esc to paus", 256, 240, opts
     ).expect("Couldn't make window");
 
     let mut run = false;
     loop {
         // just loop steps forever
         if run {
-            run_loop(console, window);
-            // We want to end the program here
-            break;
+            run_loop(&mut console, &mut window);
+            // Transition back to frame stepping
+            run = false;
+            // We need to do this to
         }
         match get_interaction() {
             None => println!("Unknown command"),
@@ -104,22 +107,23 @@ pub fn debug(rom_name: &str) {
 
 /// Runs a rom file with GUI and all
 pub fn run(rom_name: &str) {
-    let console = get_console(rom_name);
+    let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
     opts.scale = Scale::X4;
-    let window = Window::new(
-        "Test - ESC to exit", 256, 240, opts
+    let mut window = Window::new(
+        "Ludus - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
-    run_loop(console, window);
+    run_loop(&mut console, &mut window);
 }
 
-fn run_loop(mut console: console::Console, mut window: Window) {
+
+fn run_loop(console: &mut console::Console, window: &mut Window) {
     let mut old = Instant::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
         console.step_micros(duration.subsec_micros());
-        console.update_window(&mut window);
+        console.update_window(window);
     }
 }
