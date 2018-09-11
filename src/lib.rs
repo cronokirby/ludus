@@ -87,7 +87,7 @@ fn get_console(rom_name: &str) -> console::Console {
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
-    opts.scale = Scale::X4;
+    opts.scale = Scale::FitScreen;
     let mut window = Window::new(
         "Ludus (Debug) - Esc to pause", 256, 240, opts
     ).expect("Couldn't make window");
@@ -122,7 +122,7 @@ pub fn debug(rom_name: &str) {
 pub fn run(rom_name: &str) {
     let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
-    opts.scale = Scale::X4;
+    opts.scale = Scale::FitScreen;
     let mut window = Window::new(
         "Ludus - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
