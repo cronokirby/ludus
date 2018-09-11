@@ -398,10 +398,10 @@ impl PPU {
 
     pub fn update_window(&self, window: &mut Window) {
         if self.is_front {
-            window.update_with_buffer(self.front.as_ref());
+            window.update_with_buffer(self.front.as_ref())
         } else {
-            window.update_with_buffer(self.back.as_ref());
-        }
+            window.update_with_buffer(self.back.as_ref())
+        }.expect("Failed to update window");
     }
 
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
