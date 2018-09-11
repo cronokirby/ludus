@@ -28,6 +28,7 @@ pub fn disassemble(rom_name: &str) {
     cpu::disassemble(&cart.prg);
 }
 
+
 enum Interaction {
     Advance,
     CPU,
@@ -53,6 +54,7 @@ fn get_interaction() -> Option<Interaction> {
         }
     }
 }
+
 
 fn get_console(rom_name: &str) -> console::Console {
     let mut buffer: Vec<u8> = Vec::new();
