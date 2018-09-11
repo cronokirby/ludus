@@ -80,7 +80,7 @@ pub fn debug(rom_name: &str) {
     let mut opts = WindowOptions::default();
     opts.scale = Scale::X4;
     let mut window = Window::new(
-        "Ludus (Debug) - Esc to paus", 256, 240, opts
+        "Ludus (Debug) - Esc to pause", 256, 240, opts
     ).expect("Couldn't make window");
 
     let mut run = false;
