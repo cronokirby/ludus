@@ -44,7 +44,7 @@ impl Mirroring {
             (Mirroring::Vertical, 3) => 1,
             _ => 0
         };
-        0x2000 + table * 0x4000 + (address % 0x0400)
+        0x2000 + table * 0x0400 + (address % 0x0400)
     }
 }
 
