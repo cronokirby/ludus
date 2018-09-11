@@ -45,18 +45,12 @@ impl Console {
     pub fn step_frame(&mut self) {
         self.step_micros(1_000_000 / 60);
     }
+
     pub fn update_window(&self, window: &mut Window) {
         self.ppu.update_window(window);
     }
 
-    /// Steps the console forward printing debug information
-    pub fn debug_step(&mut self) {
-        self.cpu.print_current_op();
-        print!(" -> ");
-        let cycles = self.cpu.step();
-        for _ in 0..cycles * 3 {
-            self.ppu.step(&mut self.cpu.mem);
-        }
+    pub fn print_cpu(&self) {
         self.cpu.print_state();
     }
 }

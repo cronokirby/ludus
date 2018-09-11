@@ -12,7 +12,7 @@ mod tests;
 use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
-use std::io::{Read, stdin};
+use std::io::{Write, Read, stdin, stdout};
 use std::time::Instant;
 
 
@@ -30,20 +30,24 @@ pub fn disassemble(rom_name: &str) {
 
 enum Interaction {
     Advance,
+    CPU,
     Run
 }
 
 /// Gets an interaction by reading a line
 /// Returns None if no valid Interaction could be fetched
 fn get_interaction() -> Option<Interaction> {
-    let mut input = String::new();
+    print!("> ");
+    stdout().flush().expect("Couldn't flush stdout");
+    let mut input = String::new()
     match stdin().read_line(&mut input) {
         Err(_) => None,
         Ok(_) => {
-            let s = input.trim();
-            match s {
-                "" => Some(Interaction::Advance),
-                "run" => Some(Interaction::Run),
+            let s: Vec<_>= input.trim().split_whitespace().collect();
+            match s.as_slice() {
+                [] => Some(Interaction::Advance),
+                ["run"] => Some(Interaction::Run),
+                ["cpu"] => Some(Interaction::CPU),
                 _ => None
             }
         }
@@ -69,17 +73,28 @@ fn get_console(rom_name: &str) -> console::Console {
 
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
+    let mut opts = WindowOptions::default();
+    opts.scale = Scale::X4;
+    let mut window = Window::new(
+        "Test - ESC to exit", 256, 240, opts
+    ).expect("Couldn't make window");
+
     let mut run = false;
     loop {
         // just loop steps forever
         if run {
-            console.debug_step();
-            continue;
+            run_loop(console, window);
+            // We want to end the program here
+            break;
         }
         match get_interaction() {
             None => println!("Unknown command"),
             Some(Interaction::Advance) => {
-                console.debug_step();
+                console.step_frame();
+                console.update_window(&mut window);
+            }
+            Some(Interaction::CPU) => {
+                console.print_cpu();
             }
             Some(Interaction::Run) => run = true
         }
@@ -89,20 +104,21 @@ pub fn debug(rom_name: &str) {
 
 /// Runs a rom file with GUI and all
 pub fn run(rom_name: &str) {
-    let mut console = get_console(rom_name);
+    let console = get_console(rom_name);
     let mut opts = WindowOptions::default();
     opts.scale = Scale::X4;
-    let mut window = Window::new(
+    let window = Window::new(
         "Test - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
+    run_loop(console, window);
+}
 
+fn run_loop(mut console: console::Console, mut window: Window) {
     let mut old = Instant::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
-        let new_micros = duration.subsec_micros();
-        let enter_down = window.is_key_down(Key::Enter);
         console.step_micros(duration.subsec_micros());
         console.update_window(&mut window);
     }
