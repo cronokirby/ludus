@@ -468,7 +468,7 @@ impl PPU {
             tile &= 0xFE;
             if row > 7 {
                 tile += 1;
-                row = 8 - row;
+                row -= 8;
             }
             0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
         };
