@@ -45,3 +45,13 @@ In addition, Esc closes the window, and Enter resets the console.
 - Save States of any kind
 - Keeping SRAM files for each game
 - More complex Mappers
+
+
+## Resources
+I relied heavily on this very nicely written open source emulator:
+https://github.com/fogleman/nes. The PPU code is shamelessly based off
+their work, so major props to them! :P
+
+This page https://wiki.nesdev.com/w/index.php/NES_reference_guide was and
+still is my bible as I work on this project; kudos to the many
+people who've contributed in some way over the years.
