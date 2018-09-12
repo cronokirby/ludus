@@ -50,6 +50,13 @@ impl Console {
         self.ppu.update_window(window);
     }
 
+    pub fn update_controller(&mut self,
+        a: bool, b: bool, select: bool, start: bool,
+        up: bool, down: bool, left: bool, right: bool)
+    {
+        self.cpu.set_buttons([a, b, select, start, up, down, left, right]);
+    }
+
     pub fn print_cpu(&self) {
         self.cpu.print_state();
     }

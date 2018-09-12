@@ -1,6 +1,7 @@
 mod mapper2;
 
 use super::cart::{Cart, CartReadingError, Mirroring};
+use super::controller::Controller;
 use super::cpu::CPUState;
 use super::ppu::PPUState;
 
@@ -33,6 +34,9 @@ pub struct MemoryBus {
     pub mapper: Box<Mapper>,
     pub cpu: CPUState,
     pub ppu: PPUState,
+    // public for access by the cpu
+    pub controller1: Controller,
+    controller2: Controller,
     ram: [u8; 0x2000]
 }
 
@@ -46,6 +50,8 @@ impl MemoryBus {
                 mapper,
                 cpu: CPUState::new(),
                 ppu: PPUState::new(),
+                controller1: Controller::new(),
+                controller2: Controller::new(),
                 ram: [0; 0x2000]
             }
         }))
@@ -64,12 +70,10 @@ impl MemoryBus {
                 0
             }
             0x4016 => {
-                //panic!("Unimplemented Controller1 Read");
-                0
+                self.controller1.read()
             }
             0x4017 => {
-                //panic!("Unimplemented Controller2 Read");
-                0
+                self.controller2.read()
             }
             a if a >= 0x6000 => {
                 self.mapper.read(address)
@@ -98,7 +102,8 @@ impl MemoryBus {
                 //panic!("Unimpleemented APU write");
             }
             0x4016 => {
-                //panic!("Unimplemented Controller write");
+                self.controller1.write(value);
+                self.controller2.write(value);
             }
             0x4017 => {
                 //panic!("Unimplemented APU write");

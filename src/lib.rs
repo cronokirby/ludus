@@ -2,6 +2,7 @@ extern crate minifb;
 
 pub mod cart;
 pub mod console;
+pub mod controller;
 pub mod cpu;
 pub mod memory;
 pub mod ppu;
@@ -136,6 +137,16 @@ fn run_loop(console: &mut console::Console, window: &mut Window) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
+        console.update_controller(
+            window.is_key_down(Key::J),
+            window.is_key_down(Key::K),
+            window.is_key_down(Key::G),
+            window.is_key_down(Key::H),
+            window.is_key_down(Key::W),
+            window.is_key_down(Key::S),
+            window.is_key_down(Key::A),
+            window.is_key_down(Key::D)
+        );
         console.step_micros(duration.subsec_micros());
         console.update_window(window);
     }

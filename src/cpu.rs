@@ -241,6 +241,11 @@ impl CPU {
         self.set_flags(0x24);
     }
 
+    /// Sets the buttons for controller 1
+    pub fn set_buttons(&mut self, buttons: [bool; 8]) {
+        self.mem.controller1.set_buttons(buttons);
+    }
+
     fn set_flags(&mut self, flags: u8) {
         self.c = (flags >> 0) & 1;
         self.z = (flags >> 1) & 1;
