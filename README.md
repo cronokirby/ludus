@@ -9,10 +9,30 @@ Given the few dependencies this app relies on, it should be as simple as:
 ```
 git clone https://github.com/cronokirby/ludus
 cd ludus
-cargo run --release
+cargo build --release
 ```
 (Note: you probably want to run on release if you don't want choppy
 gameplay.)
+
+## Usage
+### Running a game
+```
+ludus rom
+```
+
+### Rudimentary debugging
+There's also an interactive mode, where the command line is used
+to advance frame by frame and read values, this is mainly used for
+development, and will likely be removed from a final version.
+```
+ludus rom -b
+```
+```
+ludus rom --debug
+```
+
+ATM ludus only supports .nes (INES) files, which are the most common
+format for nes roms.
 
 ## Controls
 Right now, only hardwired mapping between keys and controllers is
