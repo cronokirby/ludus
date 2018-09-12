@@ -456,19 +456,19 @@ impl PPU {
         let attributes = m.ppu.oam[i*4 + 2];
         let address = if m.ppu.flg_spritesize == 0 {
             if attributes & 0x80 == 0x80 {
-                row -= 7;
+                row = 7 - row;
             }
             let table = m.ppu.flg_spritetable;
             0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
         } else {
             if attributes & 0x80 == 0x80 {
-                row -= 15;
+                row = 15 - row;
             }
             let table = tile & 1;
             tile &= 0xFE;
             if row > 7 {
                 tile += 1;
-                row -= 8;
+                row = 8 - row;
             }
             0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
         };
