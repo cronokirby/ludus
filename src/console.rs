@@ -57,6 +57,14 @@ impl Console {
         self.cpu.set_buttons([a, b, select, start, up, down, left, right]);
     }
 
+    /// Resets everything to it's initial state
+    pub fn reset(&mut self) {
+        self.cpu.reset();
+        self.cpu.mem.reset();
+        self.ppu.reset(&mut self.cpu.mem);
+        self.ppu.clear_vbuffers();
+    }
+
     pub fn print_cpu(&self) {
         self.cpu.print_state();
     }

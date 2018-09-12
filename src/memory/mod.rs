@@ -57,6 +57,13 @@ impl MemoryBus {
         }))
     }
 
+    /// Clears ram as well as cpu and ppu state
+    pub fn reset(&mut self) {
+        self.ram = [0; 0x2000];
+        self.cpu = CPUState::new();
+        self.ppu = PPUState::new();
+    }
+
     pub fn cpu_read(&mut self, address: u16) -> u8 {
         match address {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize],

@@ -137,6 +137,11 @@ fn run_loop(console: &mut console::Console, window: &mut Window) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
+
+        if window.is_key_down(Key::Enter) {
+            console.reset();
+        }
+
         console.update_controller(
             window.is_key_down(Key::J),
             window.is_key_down(Key::K),

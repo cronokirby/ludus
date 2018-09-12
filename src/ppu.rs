@@ -396,6 +396,14 @@ impl PPU {
         m.ppu.write_oam_address(0);
     }
 
+    /// Used to clear vbuffers to make image completely neutral
+    /// This isn't called in the standard reset.
+    pub fn clear_vbuffers(&mut self) {
+        self.front = Box::new([0xFF000000; 256 * 240]);
+        self.back = Box::new([0xFF000000; 256 * 240]);
+        self.is_front = true;
+    }
+
     pub fn update_window(&self, window: &mut Window) {
         if self.is_front {
             window.update_with_buffer(self.front.as_ref())
