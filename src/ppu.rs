@@ -603,8 +603,11 @@ impl PPU {
                 }
             }
         };
-        let c = m.ppu.read_palette(color as u16) % 64;
-        let rgba = PALETTE[c as usize];
+        let mut color_index = m.ppu.read_palette(color as u16) % 64;
+        if m.ppu.flg_grayscale != 0 {
+            color_index &= 0x30;
+        }
+        let rgba = PALETTE[color_index as usize];
         let pos = (y * 256 + x) as usize;
         if self.is_front {
             self.back[pos] = rgba;
