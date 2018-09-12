@@ -41,8 +41,8 @@ some kind of file format.
 
 | Button | Key |
 | :----: | :-: |
-| A      | J   |
-| B      | K   |
+| A      | K   |
+| B      | J   |
 | Start  | H   |
 | Select | G   |
 | Up     | W   |

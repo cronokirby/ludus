@@ -143,8 +143,8 @@ fn run_loop(console: &mut console::Console, window: &mut Window) {
         }
 
         console.update_controller(
-            window.is_key_down(Key::J),
             window.is_key_down(Key::K),
+            window.is_key_down(Key::J),
             window.is_key_down(Key::G),
             window.is_key_down(Key::H),
             window.is_key_down(Key::W),
