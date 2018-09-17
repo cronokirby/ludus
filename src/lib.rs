@@ -1,5 +1,6 @@
 extern crate minifb;
 
+pub mod apu;
 pub mod cart;
 pub mod console;
 pub mod controller;
