@@ -19,6 +19,10 @@ const TRIANGLE_TABLE: [u8; 32] = [
     8, 9, 10, 11, 12, 13, 14, 15
 ];
 
+const NOISE_TABLE: [u16; 16] = [
+    4, 8, 16, 32, 64, 96, 128, 160,
+    202, 254, 380, 508, 762, 1016, 2034, 4068
+];
 
 /// Represents the Square signal generator of the APU
 struct Square {
@@ -287,14 +291,132 @@ impl Triangle {
 }
 
 
+/// Represents the noise signal generator
+struct Noise {
+    /// Whether or not output is enabled for this component
+    enabled: bool,
+    /// Which of 2 noise modes the generator is in
+    mode: bool,
+    shift_register: u16,
+    /// Enables sweep timing
+    length_enabled: bool,
+    /// Value used for sweep timing
+    length_value: u8,
+    /// Used as the point of reset for the global timer
+    timer_period: u16,
+    /// Used to keep track of the state of the global timer
+    timer_value: u16,
+    /// Whether or not an envelope effect is enabled
+    envelope_enabled: bool,
+    /// Whether or not to loop back around at the end of an envelope
+    envelope_loop: bool,
+    /// Whether or not to trigger an envelope
+    envelope_start: bool,
+    /// The point at which to reset the envelope timer
+    envelope_period: u8,
+    /// Used to control the timing of the envelope effect
+    envelope_value: u8,
+    /// Used to control the volume of the envelope effect
+    envelope_volume: u8,
+    /// Background volume
+    constant_volume: u8
+}
+
+impl Noise {
+    fn new(shift_register: u16) -> Self {
+        Noise {
+            enabled: false, mode: false,
+            shift_register,
+            length_enabled: true, length_value: 0,
+            timer_period: 0, timer_value: 0,
+            envelope_enabled: false, envelope_loop: false,
+            envelope_start: false, envelope_period: 0,
+            envelope_value: 0, envelope_volume: 0,
+            constant_volume: 0
+        }
+    }
+
+    fn write_control(&mut self, value: u8) {
+        self.length_enabled = (value >> 5) & 1 == 0;
+        self.envelope_loop = (value >> 5) & 1 == 1;
+        self.envelope_enabled = (value >> 4) & 1 == 0;
+        self.envelope_period = value & 15;
+        self.constant_volume = value & 15;
+        self.envelope_start = true;
+    }
+
+    fn write_period(&mut self, value: u8) {
+        self.mode = value & 0x80 == 0x80;
+        self.timer_period = NOISE_TABLE[(value & 0xF) as usize];
+    }
+
+    fn write_length(&mut self, value: u8) {
+        self.length_value = LENGTH_TABLE[(value >> 3) as usize];
+        self.envelope_start = true;
+    }
+
+    fn step_timer(&mut self) {
+        if self.timer_value == 0 {
+            self.timer_value = self.timer_period;
+            let shift = if self.mode { 6 } else { 1 };
+            let b1 = self.shift_register & 1;
+            let b2 = (self.shift_register >> shift) & 1;
+            self.shift_register >>= 1;
+            self.shift_register |= (b1 ^ b2) << 14;
+        } else {
+            self.timer_value -= 1;
+        }
+    }
+
+    fn step_envelope(&mut self) {
+        if self.envelope_start {
+            self.envelope_volume = 15;
+            self.envelope_value = self.envelope_period;
+            self.envelope_start = false;
+        } else if self.envelope_value > 0 {
+            self.envelope_value -= 1;
+        } else {
+            if self.envelope_volume > 0 {
+                self.envelope_volume -= 1;
+            } else if self.envelope_loop {
+                self.envelope_volume = 15;
+            }
+            self.envelope_value = self.envelope_period;
+        }
+    }
+
+    fn step_length(&mut self) {
+        if self.length_enabled && self.length_value > 0 {
+            self.length_value -= 1;
+        }
+    }
+
+    fn output(&mut self) -> u8{
+        if !self.enabled {
+            0
+        } else if self.length_value == 0 {
+            0
+        } else if self.shift_register & 1 == 1 {
+            0
+        } else if self.envelope_enabled {
+            self.envelope_volume
+        } else {
+            self.constant_volume
+        }
+    }
+}
+
+
 /// Represents the audio processing unit
 pub struct APU {
     /// The first square output generator
     square1: Square,
     /// The second square output generator
-    square2: Square2,
+    square2: Square,
     /// The triangle output generator
     triangle: Triangle,
+    /// The noise output generator
+    noise: Noise,
     /// Used to time frame ticks
     frame_tick: u16,
     /// Used to time sample ticks
@@ -309,7 +431,7 @@ impl APU {
         let sample_cap = (1_790_000 / sample_rate) as u16;
         APU {
             square1: Square::new(true), square2: Square::new(false),
-            triangle: Triangle::new(),
+            triangle: Triangle::new(), noise: Noise::new(1),
             frame_tick: 0, sample_tick: 0, sample_cap
         }
     }
