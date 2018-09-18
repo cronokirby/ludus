@@ -8,6 +8,7 @@ fn main() {
     let mut rom_name = "".to_string();
     let mut disasm = false;
     let mut debug = false;
+    let mut scale = "".to_string();
     {
         let mut ap = ArgumentParser::new();
         ap.refer(&mut rom_name)
@@ -17,6 +18,8 @@ fn main() {
             .add_option(&["-d", "--disasm"], StoreTrue, "Disassemble ROM");
         ap.refer(&mut debug)
             .add_option(&["-b", "--debug"], StoreTrue, "Debug execution");
+        ap.refer(&mut scale)
+            .add_option(&["--scale"], Store, "Screen scaling");
         ap.parse_args_or_exit();
     }
     println!("Using {} as ROM file", rom_name);
@@ -25,6 +28,6 @@ fn main() {
     } else if debug {
         ludus::debug(&rom_name);
     } else {
-        ludus::run(&rom_name);
+        ludus::run(&rom_name, ludus::get_scale(&scale));
     }
 }

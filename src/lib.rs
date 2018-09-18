@@ -31,6 +31,18 @@ pub fn disassemble(rom_name: &str) {
 }
 
 
+/// Matches a string to corresponding screen scaling sheme
+/// Matches anything besides 1, 2, and 4 to FitScreen
+pub fn get_scale(s: &str) -> Scale {
+    match s {
+        "1" => Scale::X1,
+        "2" => Scale::X2,
+        "4" => Scale::X4,
+        _ => Scale::FitScreen
+    }
+}
+
+
 /// Represents the different kinds of Interactions generated
 /// in a cli debug session.
 enum Interaction {
@@ -89,7 +101,6 @@ fn get_console(rom_name: &str) -> console::Console {
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
-    opts.scale = Scale::FitScreen;
     let mut window = Window::new(
         "Ludus (Debug) - Esc to pause", 256, 240, opts
     ).expect("Couldn't make window");
@@ -121,10 +132,10 @@ pub fn debug(rom_name: &str) {
 
 
 /// Runs a rom file with GUI and all
-pub fn run(rom_name: &str) {
+pub fn run(rom_name: &str, scale: Scale) {
     let mut console = get_console(rom_name);
     let mut opts = WindowOptions::default();
-    opts.scale = Scale::FitScreen;
+    opts.scale = scale;
     let mut window = Window::new(
         "Ludus - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
