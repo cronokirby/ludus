@@ -100,7 +100,7 @@ fn get_console(rom_name: &str) -> console::Console {
 /// Debugs a rom with GUI
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
-    let mut opts = WindowOptions::default();
+    let opts = WindowOptions::default();
     let mut window = Window::new(
         "Ludus (Debug) - Esc to pause", 256, 240, opts
     ).expect("Couldn't make window");
