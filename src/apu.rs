@@ -12,7 +12,12 @@ const DUTY_TABLE: [[u8; 8]; 4] = [
     [1, 0, 0, 1, 1, 1, 1, 1]
 ];
 
-//const TRIANGLE_TABLE: [u8; ]
+const TRIANGLE_TABLE: [u8; 32] = [
+    15, 14, 13, 12, 11, 10, 9, 8,
+    7, 6, 5, 4, 3, 2, 1, 0,
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15
+];
 
 
 /// Represents the Square signal generator of the APU
@@ -244,7 +249,7 @@ impl Triangle {
         if self.timer_value == 0 {
             self.timer_value = self.timer_period;
             if self.length_value > 0 && self.counter_value > 0 {
-               self.duty_value = (self.duty_value + 1)  % 32;
+               self.duty_value = (self.duty_value + 1) % 32;
             }
         } else {
             self.timer_value -= 1;
@@ -276,7 +281,7 @@ impl Triangle {
         } else if self.counter_value == 0 {
             0
         } else {
-            0
+            TRIANGLE_TABLE[self.duty_value as usize]
         }
     }
 }
@@ -284,6 +289,12 @@ impl Triangle {
 
 /// Represents the audio processing unit
 pub struct APU {
+    /// The first square output generator
+    square1: Square,
+    /// The second square output generator
+    square2: Square2,
+    /// The triangle output generator
+    triangle: Triangle,
     /// Used to time frame ticks
     frame_tick: u16,
     /// Used to time sample ticks
@@ -297,6 +308,8 @@ impl APU {
     pub fn new(sample_rate: u32) -> Self {
         let sample_cap = (1_790_000 / sample_rate) as u16;
         APU {
+            square1: Square::new(true), square2: Square::new(false),
+            triangle: Triangle::new(),
             frame_tick: 0, sample_tick: 0, sample_cap
         }
     }
