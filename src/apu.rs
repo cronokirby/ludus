@@ -12,6 +12,8 @@ const DUTY_TABLE: [[u8; 8]; 4] = [
     [1, 0, 0, 1, 1, 1, 1, 1]
 ];
 
+//const TRIANGLE_TABLE: [u8; ]
+
 
 /// Represents the Square signal generator of the APU
 struct Square {
@@ -182,6 +184,99 @@ impl Square {
             self.envelope_volume
         } else {
             self.constant_volume
+        }
+    }
+}
+
+
+/// Represents the triangle signal simulator
+struct Triangle {
+    /// Whether or not output is enabled
+    enabled: bool,
+    /// Like in Pulse, these are used to control output generation
+    length_enabled: bool,
+    length_value: u8,
+    /// Keeps track of the reset value of the timer
+    timer_period: u16,
+    /// Counts down to 0 before resetting to timer_period
+    timer_value: u16,
+    /// Used for manipulating the duty of the signal
+    duty_value: u8,
+    /// Used to keep track of the max value of the period
+    counter_period: u8,
+    /// Counts down to 0 before restting to counter_period
+    counter_value: u8,
+    /// Controls whether or not the value will wrap around
+    counter_reload: bool
+}
+
+impl Triangle {
+    fn new() -> Self {
+        Triangle {
+            enabled: false,
+            length_enabled: false, length_value: 0,
+            timer_period: 0, timer_value: 0,
+            duty_value: 0,
+            counter_period: 0, counter_value: 0,
+            counter_reload: false
+        }
+    }
+
+    fn write_control(&mut self, value: u8) {
+        self.length_enabled = (value >> 7) & 1 == 0;
+        self.counter_period = value & 0x7F;
+    }
+
+    fn write_low_timer(&mut self, value: u8) {
+        let low = value as u16;
+        self.timer_period = (self.timer_period & 0xFF00) | low;
+    }
+
+    fn write_high_timer(&mut self, value: u8) {
+        self.length_value = LENGTH_TABLE[(value >> 3) as usize];
+        let high = ((value & 7) << 8) as u16;
+        self.timer_period = (self.timer_period & 0xFF) | high;
+        self.timer_value = self.timer_period;
+        self.counter_reload = true;
+    }
+
+    fn step_timer(&mut self) {
+        if self.timer_value == 0 {
+            self.timer_value = self.timer_period;
+            if self.length_value > 0 && self.counter_value > 0 {
+               self.duty_value = (self.duty_value + 1)  % 32;
+            }
+        } else {
+            self.timer_value -= 1;
+        }
+    }
+
+    fn step_length(&mut self) {
+        if self.length_enabled && self.length_value > 0 {
+            self.length_value -= 1;
+        }
+    }
+
+    fn step_counter(&mut self) {
+        if self.counter_reload {
+            self.counter_value = self.counter_period;
+        } else if self.counter_value > 0 {
+            self.counter_value -= 1;
+        }
+        if self.length_enabled {
+            self.counter_reload = false;
+        }
+    }
+
+    fn output(&self) -> u8 {
+        if !self.enabled {
+            0
+        } else if self.length_value == 0 {
+            0
+        } else if self.counter_value == 0 {
+            0
+        } else {
+            0
         }
     }
 }
