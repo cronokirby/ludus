@@ -1,3 +1,6 @@
+use super::memory::MemoryBus;
+
+
 const LENGTH_TABLE: [u8; 32] = [
     10, 254, 20, 2, 40, 4, 80, 6,
     160, 8, 60, 10, 14, 12, 26, 14,
@@ -23,6 +26,12 @@ const NOISE_TABLE: [u16; 16] = [
     4, 8, 16, 32, 64, 96, 128, 160,
     202, 254, 380, 508, 762, 1016, 2034, 4068
 ];
+
+const DMC_TABLE: [u8; 16] = [
+    214, 190, 170, 160, 143, 127, 113, 107,
+    95, 80, 71, 64, 53, 42, 36, 27
+];
+
 
 /// Represents the Square signal generator of the APU
 struct Square {
@@ -407,6 +416,118 @@ impl Noise {
 }
 
 
+/// Generator for DMC Samples
+struct DMC {
+    /// Whether or not output is enabled for this generator
+    enabled: bool,
+    /// Current output value
+    value: u8,
+    /// The address of the current sample
+    sample_address: u16,
+    /// The length of the current sample
+    sample_length: u16,
+    /// The current address being read from
+    current_address: u16,
+    /// The current length left to read
+    current_length: u16,
+    /// Contains the value of shifts for effects
+    shift_register: u8,
+    bit_count: u8,
+    /// The point at which the tick resets
+    tick_period: u8,
+    /// The current value of the tick
+    tick_value: u8,
+    /// Whether or not to loop back at the end of a sound cycle
+    do_loop: bool,
+    /// Whether or not an irq ocurred
+    irq: bool
+}
+
+impl DMC {
+    fn new() -> Self {
+        DMC {
+            enabled: false, value: 0,
+            sample_address: 0, sample_length: 0,
+            current_address: 0, current_length: 0,
+            shift_register: 0, bit_count: 0,
+            tick_period: 0, tick_value: 0,
+            do_loop: false, irq: false
+        }
+    }
+
+    fn write_control(&mut self, value: u8) {
+        self.irq = value & 0x80 == 0x80;
+        self.do_loop = value & 040 == 0x40;
+        self.tick_period = DMC_TABLE[(value & 0xF) as usize];
+    }
+
+    fn write_value(&mut self, value: u8) {
+        self.value = value & 0x7F;
+    }
+
+    fn write_address(&mut self, value: u8) {
+        self.sample_address = 0xC000 | ((value as u16) << 6);
+    }
+
+    fn write_length(&mut self, value: u8) {
+        self.sample_length = ((value as u16) << 4) | 1;
+    }
+
+    fn restart(&mut self) {
+        self.current_address = self.sample_address;
+        self.current_length = self.sample_length;
+    }
+
+    fn step_timer(&mut self, m: &mut MemoryBus) {
+        if self.enabled {
+            self.step_reader();
+            if self.tick_value == 0 {
+                self.tick_value = self.tick_period;
+                self.step_shifter()
+            } else {
+                self.tick_value -= 1;
+            }
+        }
+    }
+
+    fn step_reader(&mut self, m: &mut MemoryBus) {
+        if self.current_length > 0 && self.bit_count == 0 {
+            // cpu.stall += 4
+            self.shift_register = m.cpu_read(self.current_address);
+            self.bit_count = 8;
+            self.current_address = self.current_address.wrapping_add(1);
+            if self.current_address == 0 {
+                self.current_address = 0x8000;
+            }
+            self.current_length -= 1;
+            if self.current_length == 0 && self.do_loop {
+                self.restart();
+            }
+        }
+    }
+
+    fn step_shifter(&mut self) {
+        if self.bit_count != 0 {
+            if self.shift_register & 1 == 1 {
+                if self.value <= 125 {
+                    self.value += 2;
+                }
+            } else {
+                if self.value >= 2 {
+                    self.value -= 2;
+                }
+            }
+            self.shift_register >>= 1;
+            self.bit_count -= 1;
+        }
+    }
+
+    fn output(&self) -> u8 {
+        self.value
+    }
+}
+
+
 /// Represents the audio processing unit
 pub struct APU {
     /// The first square output generator
@@ -417,13 +538,21 @@ pub struct APU {
     triangle: Triangle,
     /// The noise output generator
     noise: Noise,
+    /// The DMC sample generator
+    sample: DMC,
     /// Used to time frame ticks
     frame_tick: u16,
     /// Used to time sample ticks
     sample_tick: u16,
     /// The number of ticks after which to reset the sample tick.
     /// This is determined from the sample rate at runtime
-    sample_cap: u16
+    sample_cap: u16,
+    /// The current frame period
+    frame_period: u8,
+    /// The current frame value
+    frame_value: u8,
+    /// Whether or not to trigger IRQs
+    frame_irq: bool
 }
 
 impl APU {
@@ -432,23 +561,100 @@ impl APU {
         APU {
             square1: Square::new(true), square2: Square::new(false),
             triangle: Triangle::new(), noise: Noise::new(1),
-            frame_tick: 0, sample_tick: 0, sample_cap
+            sample: DMC::new(),
+            frame_tick: 0, sample_tick: 0, sample_cap,
+            frame_period: 0, frame_value: 0, frame_irq: false
         }
     }
 
     /// Steps the apu forward by one CPU tick
-    pub fn step(&mut self) {
+    pub fn step(&mut self, m: &mut MemoryBus) {
         // step timer
         self.frame_tick += 1;
+        // we can use the first bit of the frame_tick as an even odd flag
+        self.step_timer(self.frame_tick & 1 == 0, m);
         // This is equivalent to firing at roughly 240 hz
         if self.frame_tick >= 7458 {
             self.frame_tick = 0;
-            // step frame counter
+            self.step_framecounter(m);
         }
         self.sample_tick += 1;
         if self.sample_tick >= self.sample_cap {
             self.sample_tick = 0;
             // send sample
+        }
+    }
+
+    fn step_timer(&mut self, toggle: bool, m: &mut MemoryBus) {
+        if toggle {
+            self.square1.step_timer();
+            self.square2.step_timer();
+            self.noise.step_timer();
+            self.dmc.step_timer(m);
+        }
+        self.triangle.step_timer();
+    }
+
+    fn step_framecounter(&mut self, m: &mut MemoryBus) {
+        match self.frame_period {
+            4 => {
+                self.frame_value = (self.frame_value + 1) % 4;
+                match self.frame_value {
+                    0 | 2 => self.step_envelope(),
+                    1 => {
+                        self.step_envelope();
+                        self.step_sweep();
+                        self.step_length();
+                    }
+                    3 => {
+                        self.step_envelope();
+                        self.step_sweep();
+                        self.step_length();
+                        self.fire_irq(m);
+                    }
+                    // This can't happen because of the module 4
+                    _ => {}
+                }
+            }
+            5 => {
+                self.frame_value = (self.frame_value + 1) % 5;
+                match self.frame_value {
+                    1 | 3 => self.step_envelope(),
+                    0 | 2 => {
+                        self.step_envelope();
+                        self.step_sweep();
+                        self.step_length();
+                    }
+                    // We don't want to do anything for 5
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn step_envelope(&mut self) {
+        self.square1.step_envelope();
+        self.square2.step_envelope();
+        self.triangle.step_counter();
+        self.noise.step_envelope();
+    }
+
+    fn step_sweep(&mut self) {
+        self.square1.step_sweep();
+        self.square2.step_sweep();
+    }
+
+    fn step_length(&mut self) {
+        self.square1.step_length();
+        self.square2.step_length();
+        self.triangle.step_length();
+        self.noise.step_length();
+    }
+
+    fn fire_irq(&self, m: &mut MemoryBus) {
+        if self.frame_irq {
+            m.cpu.set_irq();
         }
     }
 }
