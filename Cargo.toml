@@ -5,4 +5,5 @@ authors = ["Lúcás Meier <cronokirby@gmail.com>"]
 
 [dependencies]
 argparse = "0.2.2"
+cpal = "0.8.2"
 minifb = "0.10"
