@@ -124,6 +124,8 @@ impl MemoryBus {
 
     fn write_dma(&mut self, value: u8) {
         let mut address = (value as u16) << 8;
+        // Stall for DMA
+        self.cpu.add_stall(513);
         for _ in 0..256 {
             let oam_address = self.ppu.oam_address as usize;
             self.ppu.oam[oam_address] = self.cpu_read(address);

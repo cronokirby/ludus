@@ -164,12 +164,16 @@ fn branch_cycles(pc: u16, address: u16) -> i32 {
 /// Represents public CPU state
 pub struct CPUState {
     /// Represents the interrupt, None representing no interrupt
-    interrupt: Option<Interrupt>
+    interrupt: Option<Interrupt>,
+    /// Used to add stalls to cpu cycles
+    stall: i32,
 }
 
 impl CPUState {
     pub fn new() -> Self {
-        CPUState { interrupt: None }
+        CPUState {
+            interrupt: None, stall: 0
+        }
     }
 
     pub fn set_nmi(&mut self) {
@@ -182,6 +186,10 @@ impl CPUState {
 
     pub fn clear_interrupt(&mut self) {
         self.interrupt = None;
+    }
+
+    pub fn add_stall(&mut self, amount: i32) {
+        self.stall += amount;
     }
 }
 
@@ -216,8 +224,6 @@ pub struct CPU {
     v: u8,
     /// Negative Flag
     n: u8,
-    /// Used to request the CPU stall, mainly for timing purposes
-    stall: i32,
     /// Shared acess to the memory bus along with the ppu,
     pub mem: MemoryBus
 }
@@ -228,7 +234,7 @@ impl CPU {
         let mut cpu = CPU {
             pc: 0, sp: 0, a: 0, x: 0, y: 0, c: 0,
             z: 0, i: 0, d: 0, b: 0, u: 0, v: 0, n: 0,
-            stall: 0, mem
+            mem
         };
         cpu.reset();
         cpu
@@ -289,10 +295,6 @@ impl CPU {
     }
 
     fn write(&mut self, address: u16, value: u8) {
-        // handle DMA write stalling
-        if address == 0x4014 {
-            self.stall += 513;
-        }
         self.mem.cpu_write(address, value);
     }
 
@@ -375,8 +377,8 @@ impl CPU {
     /// Returns the number of cycles passed
     pub fn step(&mut self) -> i32 {
         // Stall for a single cycle if stall cycles are still done
-        if self.stall > 0 {
-            self.stall -= 1;
+        if self.mem.cpu.stall > 0 {
+            self.mem.cpu.stall -= 1;
             return 1;
         }
         let mut cycles = 0;
