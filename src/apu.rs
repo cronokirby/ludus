@@ -116,7 +116,7 @@ impl Square {
         self.timer_period = (self.timer_period & 0xFF00) | (value as u16);
     }
 
-    fn write_how_timer(&mut self, value: u8) {
+    fn write_high_timer(&mut self, value: u8) {
         self.length_value = LENGTH_TABLE[(value >> 3) as usize];
         let shifted = ((value & 7) as u16) << 8;
         self.timer_period = (self.timer_period & 0xFF) | shifted;
@@ -480,7 +480,7 @@ impl DMC {
 
     fn step_timer(&mut self, m: &mut MemoryBus) {
         if self.enabled {
-            self.step_reader();
+            self.step_reader(m);
             if self.tick_value == 0 {
                 self.tick_value = self.tick_period;
                 self.step_shifter()
@@ -539,7 +539,7 @@ pub struct APU {
     /// The noise output generator
     noise: Noise,
     /// The DMC sample generator
-    sample: DMC,
+    dmc: DMC,
     /// Used to time frame ticks
     frame_tick: u16,
     /// Used to time sample ticks
@@ -561,7 +561,7 @@ impl APU {
         APU {
             square1: Square::new(true), square2: Square::new(false),
             triangle: Triangle::new(), noise: Noise::new(1),
-            sample: DMC::new(),
+            dmc: DMC::new(),
             frame_tick: 0, sample_tick: 0, sample_cap,
             frame_period: 0, frame_value: 0, frame_irq: false
         }
@@ -572,7 +572,8 @@ impl APU {
         // step timer
         self.frame_tick += 1;
         // we can use the first bit of the frame_tick as an even odd flag
-        self.step_timer(self.frame_tick & 1 == 0, m);
+        let toggle = self.frame_tick & 1 == 0;
+        self.step_timer(toggle, m);
         // This is equivalent to firing at roughly 240 hz
         if self.frame_tick >= 7458 {
             self.frame_tick = 0;
@@ -657,4 +658,98 @@ impl APU {
             m.cpu.set_irq();
         }
     }
+
+    pub fn read_register(&self, address: u16) -> u8 {
+        match address {
+            0x4015 => self.read_status(),
+            // Some addresses may be read by bad games
+            _ => 0
+        }
+    }
+
+    fn read_status(&self) -> u8 {
+        let mut result = 0;
+        if self.square1.length_value > 0 {
+            result |= 1;
+        }
+        if self.square2.length_value > 0 {
+            result |= 2;
+        }
+        if self.triangle.length_value > 0 {
+            result |= 4;
+        }
+        if self.noise.length_value > 0 {
+            result |= 8;
+        }
+        if self.dmc.current_length > 0 {
+            result |= 16;
+        }
+        result
+    }
+
+    pub fn write_register(&mut self, address: u16, value: u8) {
+        match address {
+            0x4000 => self.square1.write_control(value),
+            0x4001 => self.square1.write_sweep(value),
+            0x4002 => self.square1.write_low_timer(value),
+            0x4003 => self.square1.write_high_timer(value),
+            0x4004 => self.square2.write_control(value),
+            0x4005 => self.square2.write_control(value),
+            0x4006 => self.square2.write_low_timer(value),
+            0x4007 => self.triangle.write_high_timer(value),
+            0x4008 => self.triangle.write_control(value),
+            0x4009 => {}
+            0x4010 => self.dmc.write_control(value),
+            0x4011 => self.dmc.write_value(value),
+            0x4012 => self.dmc.write_address(value),
+            0x4013 => self.dmc.write_length(value),
+            0x400A => self.triangle.write_low_timer(value),
+            0x400B => self.triangle.write_high_timer(value),
+            0x400C => self.noise.write_control(value),
+            0x400D => {}
+            0x400E => self.noise.write_period(value),
+            0x400F => self.noise.write_length(value),
+            0x4015 => self.write_control(value),
+            0x4017 => self.write_frame_counter(value),
+            // We may want to panic here
+            _ => {}
+        }
+    }
+
+    fn write_control(&mut self, value: u8) {
+        self.square1.enabled = value & 1 == 1;
+        self.square2.enabled = value & 2 == 2;
+        self.triangle.enabled = value & 4 == 4;
+        self.noise.enabled = value & 8 == 8;
+        self.dmc.enabled = value & 16 == 16;
+        if !self.square1.enabled {
+            self.square1.length_value = 0;
+        }
+        if !self.square2.enabled {
+            self.square2.length_value = 0;
+        }
+        if !self.triangle.enabled {
+            self.triangle.length_value = 0;
+        }
+        if !self.noise.enabled {
+            self.noise.length_value = 0;
+        }
+        if !self.dmc.enabled {
+            self.dmc.current_length = 0;
+        } else if self.dmc.current_length == 0 {
+            self.dmc.restart();
+        }
+    }
+
+    fn write_frame_counter(&mut self, value: u8) {
+        self.frame_period = 4 + (value >> 7) & 1;
+        self.frame_irq = (value >> 6) & 1 == 0;
+        // Catching up with the frame period
+        if self.frame_period == 5 {
+            self.step_envelope();
+            self.step_sweep();
+            self.step_length();
+        }
+    }
+
 }
