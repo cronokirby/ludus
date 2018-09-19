@@ -252,7 +252,7 @@ impl Triangle {
 
     fn write_high_timer(&mut self, value: u8) {
         self.length_value = LENGTH_TABLE[(value >> 3) as usize];
-        let high = ((value & 7) << 8) as u16;
+        let high = ((value & 7) as u16) << 8;
         self.timer_period = (self.timer_period & 0xFF) | high;
         self.timer_value = self.timer_period;
         self.counter_reload = true;
