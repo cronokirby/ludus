@@ -26,7 +26,7 @@ fn main() {
     if disasm {
         ludus::disassemble(&rom_name);
     } else if debug {
-        ludus::debug(&rom_name);
+        //ludus::debug(&rom_name);
     } else {
         ludus::run(&rom_name, ludus::get_scale(&scale));
     }

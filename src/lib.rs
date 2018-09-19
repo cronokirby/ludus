@@ -1,3 +1,4 @@
+extern crate cpal;
 extern crate minifb;
 
 pub mod apu;
@@ -15,7 +16,9 @@ use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
 use std::io::{Read, Write, stdin, stdout};
+use std::thread;
 use std::time::Instant;
+use std::sync::mpsc::{Sender, Receiver, channel};
 
 
 /// Attempts to disassemble a rom, panicing on exits
@@ -79,12 +82,14 @@ fn get_interaction() -> Option<Interaction> {
 }
 
 
-fn get_console(rom_name: &str) -> console::Console {
+fn get_console(rom_name: &str, tx: Sender<f32>, sample_rate: u32)
+    -> console::Console
+    {
     let mut buffer: Vec<u8> = Vec::new();
     let mut file = File::open(rom_name)
         .expect("Couldn't open the ROM file");
     file.read_to_end(&mut buffer).expect("Couldn't read ROM file");
-    console::Console::new(&buffer).unwrap_or_else(|e| {
+    console::Console::new(&buffer, tx, sample_rate).unwrap_or_else(|e| {
         match e {
             cart::CartReadingError::UnknownMapper(n) => {
                 panic!("Unkown Mapper: {}", n)
@@ -98,6 +103,7 @@ fn get_console(rom_name: &str) -> console::Console {
 
 
 /// Debugs a rom with GUI
+/*
 pub fn debug(rom_name: &str) {
     let mut console = get_console(rom_name);
     let opts = WindowOptions::default();
@@ -128,18 +134,50 @@ pub fn debug(rom_name: &str) {
             Some(Interaction::Run) => run = true
         }
     }
-}
+}*/
 
 
 /// Runs a rom file with GUI and all
 pub fn run(rom_name: &str, scale: Scale) {
-    let mut console = get_console(rom_name);
+    let (tx, rx) = channel::<f32>();
+    let (sample_rate, _audio) = spawn_audio_loop(rx);
+    let mut console = get_console(rom_name, tx, sample_rate);
     let mut opts = WindowOptions::default();
     opts.scale = scale;
     let mut window = Window::new(
         "Ludus - ESC to exit", 256, 240, opts
     ).expect("Couldn't make window");
     run_loop(&mut console, &mut window);
+}
+
+fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
+    let device = cpal::default_output_device()
+        .expect("Failed to get default output device");
+    let format = device.default_output_format()
+        .expect("Failed to get default output format");
+    let event_loop = cpal::EventLoop::new();
+    let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
+    event_loop.play_stream(stream_id.clone());
+    let sample_rate = format.sample_rate.0;
+    let child = thread::spawn(move || {
+        let channels = format.channels as usize;
+        event_loop.run(move |_, data| {
+            match data {
+                cpal::StreamData::Output {
+                    buffer: cpal::UnknownTypeOutputBuffer::F32(mut buffer)
+                } => {
+                    for sample in buffer.chunks_mut(channels) {
+                        let value = rx.recv().unwrap();
+                        for out in sample.iter_mut() {
+                            *out = value;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        })
+    });
+    (sample_rate, child)
 }
 
 

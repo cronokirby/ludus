@@ -1,5 +1,7 @@
 use super::memory::MemoryBus;
 
+use std::sync::mpsc::Sender;
+
 
 const LENGTH_TABLE: [u8; 32] = [
     10, 254, 20, 2, 40, 4, 80, 6,
@@ -530,6 +532,8 @@ impl DMC {
 
 /// Represents the audio processing unit
 pub struct APU {
+    /// The channel used to send output to
+    channel: Sender<f32>,
     /// The first square output generator
     square1: Square,
     /// The second square output generator
@@ -556,9 +560,10 @@ pub struct APU {
 }
 
 impl APU {
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
         let sample_cap = (1_790_000 / sample_rate) as u16;
         APU {
+            channel: tx,
             square1: Square::new(true), square2: Square::new(false),
             triangle: Triangle::new(), noise: Noise::new(1),
             dmc: DMC::new(),

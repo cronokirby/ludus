@@ -6,6 +6,8 @@ use super::ppu::PPU;
 
 use super::minifb::Window;
 
+use std::sync::mpsc::Sender;
+
 
 /// Used to act as an owner of everything needed to run a game
 /// Is also responsible for holding ram,
@@ -16,9 +18,11 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn new(rom_buffer: &[u8]) -> Result<Self, CartReadingError> {
+    pub fn new(rom_buffer: &[u8], tx: Sender<f32>, sample_rate: u32)
+        -> Result<Self, CartReadingError>
+        {
         // Todo, use an actual sample rate
-        let apu = APU::new(240);
+        let apu = APU::new(tx, sample_rate);
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer, apu);
         mem_res.map(|mut memory| {
