@@ -692,7 +692,7 @@ impl APUState {
             0x4004 => self.square2.write_control(value),
             0x4005 => self.square2.write_sweep(value),
             0x4006 => self.square2.write_low_timer(value),
-            0x4007 => self.triangle.write_high_timer(value),
+            0x4007 => self.square2.write_high_timer(value),
             0x4008 => self.triangle.write_control(value),
             0x4009 => {}
             0x4010 => self.dmc.write_control(value),
