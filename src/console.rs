@@ -38,6 +38,9 @@ impl Console {
         for _ in 0..cpucycles * 3 {
             self.ppu.step(m);
         }
+        for _ in 0..cpucycles {
+            m.apu.step();
+        }
         cpucycles
     }
 

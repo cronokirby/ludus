@@ -1,5 +1,6 @@
 use super::memory::MemoryBus;
 
+use std::f32::consts::PI;
 use std::sync::mpsc::Sender;
 
 
@@ -33,6 +34,93 @@ const DMC_TABLE: [u8; 16] = [
     214, 190, 170, 160, 143, 127, 113, 107,
     95, 80, 71, 64, 53, 42, 36, 27
 ];
+
+/// Constructs a new tnd table
+fn make_tnd_table() -> [f32; 31] {
+    let mut arr = [0.0; 31];
+    for i in 0..31 {
+        arr[i] = 95.52 / (8128.0 / (i as f32) + 100.0);
+    }
+    arr
+}
+
+/// Constructs a new pulse table
+fn make_pulse_table() -> [f32; 203] {
+    let mut arr = [0.0; 203];
+    for i in 0..203 {
+        arr[i] = 163.37 / (24329.0 / (i as f32) + 100.0);
+    }
+    arr
+}
+
+
+/// Represents a first order filter, implementing the following formula:
+/// y_n = b0 * x_n + b1 * x_(n-1) - a y_(n-1)
+struct Filter {
+    b0: f32,
+    b1: f32,
+    a: f32,
+    /// Caches the previous x value
+    prev_x: f32,
+    prev_y: f32
+}
+
+/// Used to calculate the frequency constants used in Filters
+fn frequency_constants(sample_rate: u32, cutoff: f32) -> (f32, f32) {
+    let c = (sample_rate as f32) / PI / cutoff;
+    let a0 = 1.0 / (1.0 + c);
+    (c, a0)
+}
+
+impl Filter {
+    /// Constructs a new low pass filter
+    fn low_pass(sample_rate: u32, cutoff: f32) -> Filter {
+        let (c, a0) = frequency_constants(sample_rate, cutoff);
+        Filter {
+            b0: a0, b1: a0, a: (1.0 - c) * a0,
+            prev_x: 1.0, prev_y: 1.0
+        }
+    }
+
+    /// Constructs a new high pass filter
+    fn high_pass(sample_rate: u32, cutoff: f32) -> Filter {
+        let (c, a0) = frequency_constants(sample_rate, cutoff);
+        Filter {
+            b0: c * a0, b1: -c * a0, a: (1.0 - c) * a0,
+            prev_x: 1.0, prev_y: 1.0
+        }
+    }
+
+    fn step(&mut self, x: f32) -> f32 {
+        let y = self.b0 * x + self.b1 * self.prev_x - self.a * self.prev_y;
+        self.prev_y = y;
+        self.prev_x = x;
+        y
+    }
+}
+
+/// Represents the collection of filters applied to the output of the APU
+struct FilterChain {
+    high1: Filter,
+    high2: Filter,
+    low: Filter
+}
+
+impl FilterChain {
+    fn new(sample_rate: u32) -> Self {
+        FilterChain {
+            high1: Filter::high_pass(sample_rate, 90.0),
+            high2: Filter::high_pass(sample_rate, 440.0),
+            low: Filter::low_pass(sample_rate, 14000.0)
+        }
+    }
+
+    fn step(&mut self, x: f32) -> f32 {
+        let x1 = self.high1.step(x);
+        let x2 = self.high2.step(x1);
+        self.low.step(x2)
+    }
+}
 
 
 /// Represents the Square signal generator of the APU
@@ -188,7 +276,7 @@ impl Square {
     }
 
     fn output(&self) -> u8 {
-        if self.enabled {
+        if !self.enabled {
             return 0;
         } else if self.length_value == 0 {
             return 0;
@@ -480,9 +568,9 @@ impl DMC {
         self.current_length = self.sample_length;
     }
 
-    fn step_timer(&mut self, m: &mut MemoryBus) {
+    fn step_timer(&mut self) {
         if self.enabled {
-            self.step_reader(m);
+            self.step_reader();
             if self.tick_value == 0 {
                 self.tick_value = self.tick_period;
                 self.step_shifter()
@@ -492,10 +580,10 @@ impl DMC {
         }
     }
 
-    fn step_reader(&mut self, m: &mut MemoryBus) {
+    fn step_reader(&mut self) {
         if self.current_length > 0 && self.bit_count == 0 {
             // cpu.stall += 4
-            self.shift_register = m.cpu_read(self.current_address);
+            //self.shift_register = m.cpu_read(self.current_address);
             self.bit_count = 8;
             self.current_address = self.current_address.wrapping_add(1);
             if self.current_address == 0 {
@@ -534,6 +622,11 @@ impl DMC {
 pub struct APU {
     /// The channel used to send output to
     channel: Sender<f32>,
+    /// The chain of filters used on the output of the generators
+    filter: FilterChain,
+    // The 2 tables used to find the height of the wave output
+    tnd_table: [f32; 31],
+    pulse_table: [f32; 203],
     /// The first square output generator
     square1: Square,
     /// The second square output generator
@@ -562,8 +655,12 @@ pub struct APU {
 impl APU {
     pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
         let sample_cap = (1_790_000 / sample_rate) as u16;
+        let tnd_table = make_tnd_table();
+        let pulse_table = make_pulse_table();
         APU {
             channel: tx,
+            filter: FilterChain::new(sample_rate),
+            tnd_table, pulse_table,
             square1: Square::new(true), square2: Square::new(false),
             triangle: Triangle::new(), noise: Noise::new(1),
             dmc: DMC::new(),
@@ -573,35 +670,52 @@ impl APU {
     }
 
     /// Steps the apu forward by one CPU tick
-    pub fn step(&mut self, m: &mut MemoryBus) {
+    pub fn step(&mut self) {
         // step timer
         self.frame_tick += 1;
         // we can use the first bit of the frame_tick as an even odd flag
         let toggle = self.frame_tick & 1 == 0;
-        self.step_timer(toggle, m);
+        self.step_timer(toggle);
         // This is equivalent to firing at roughly 240 hz
         if self.frame_tick >= 7458 {
             self.frame_tick = 0;
-            self.step_framecounter(m);
+            self.step_framecounter();
         }
         self.sample_tick += 1;
         if self.sample_tick >= self.sample_cap {
             self.sample_tick = 0;
-            // send sample
+            self.send_sample();
         }
     }
 
-    fn step_timer(&mut self, toggle: bool, m: &mut MemoryBus) {
+    fn send_sample(&mut self) {
+        let output = self.output();
+        self.channel.send(output).unwrap();
+    }
+
+    fn output(&mut self) -> f32 {
+        let p1 = self.square1.output();
+        let p2 = self.square2.output();
+        let t = self.triangle.output();
+        let n = self.noise.output();
+        let d = self.dmc.output();
+        // TODO: figure out if these bound checks are a bug somewhere else
+        let pulse_out = self.pulse_table.get((p1 + p2) as usize);
+        let tnd_out = self.tnd_table.get((3 * t + 2 * n + d) as usize);
+        pulse_out.unwrap_or(&0.0) + tnd_out.unwrap_or(&0.0)
+    }
+
+    fn step_timer(&mut self, toggle: bool) {
         if toggle {
             self.square1.step_timer();
             self.square2.step_timer();
             self.noise.step_timer();
-            self.dmc.step_timer(m);
+            self.dmc.step_timer();
         }
         self.triangle.step_timer();
     }
 
-    fn step_framecounter(&mut self, m: &mut MemoryBus) {
+    fn step_framecounter(&mut self) {
         match self.frame_period {
             4 => {
                 self.frame_value = (self.frame_value + 1) % 4;
@@ -616,7 +730,7 @@ impl APU {
                         self.step_envelope();
                         self.step_sweep();
                         self.step_length();
-                        self.fire_irq(m);
+                        self.fire_irq();
                     }
                     // This can't happen because of the module 4
                     _ => {}
@@ -658,9 +772,9 @@ impl APU {
         self.noise.step_length();
     }
 
-    fn fire_irq(&self, m: &mut MemoryBus) {
+    fn fire_irq(&self) {
         if self.frame_irq {
-            m.cpu.set_irq();
+            //m.cpu.set_irq();
         }
     }
 

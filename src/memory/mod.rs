@@ -33,7 +33,7 @@ pub struct MemoryBus {
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
     pub mapper: Box<Mapper>,
-    apu: APU,
+    pub apu: APU,
     pub cpu: CPUState,
     pub ppu: PPUState,
     // public for access by the cpu
