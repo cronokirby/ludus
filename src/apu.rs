@@ -278,7 +278,8 @@ impl Square {
     fn output(&self) -> u8 {
         if !self.enabled {
             return 0;
-        } else if self.length_value == 0 {
+        }
+        if self.length_value == 0 {
             return 0;
         }
         let (i1, i2) = (self.duty_mode as usize, self.duty_value as usize);
@@ -568,22 +569,25 @@ impl DMC {
         self.current_length = self.sample_length;
     }
 
-    fn step_timer(&mut self) {
+    fn step_timer(&mut self, read: u8) -> bool {
         if self.enabled {
-            self.step_reader();
+            let stall = self.step_reader(read);
             if self.tick_value == 0 {
                 self.tick_value = self.tick_period;
-                self.step_shifter()
+                self.step_shifter();
             } else {
                 self.tick_value -= 1;
             }
+            stall
+        } else {
+            false
         }
     }
 
-    fn step_reader(&mut self) {
+    // returns whether or not to stall
+    fn step_reader(&mut self, read: u8) -> bool {
         if self.current_length > 0 && self.bit_count == 0 {
-            // cpu.stall += 4
-            //self.shift_register = m.cpu_read(self.current_address);
+            self.shift_register = read;
             self.bit_count = 8;
             self.current_address = self.current_address.wrapping_add(1);
             if self.current_address == 0 {
@@ -593,6 +597,9 @@ impl DMC {
             if self.current_length == 0 && self.do_loop {
                 self.restart();
             }
+            true
+        } else {
+            false
         }
     }
 
@@ -618,15 +625,8 @@ impl DMC {
 }
 
 
-/// Represents the audio processing unit
-pub struct APU {
-    /// The channel used to send output to
-    channel: Sender<f32>,
-    /// The chain of filters used on the output of the generators
-    filter: FilterChain,
-    // The 2 tables used to find the height of the wave output
-    tnd_table: [f32; 31],
-    pulse_table: [f32; 203],
+/// Contains registers that are written to across the memory bus
+pub struct APUState {
     /// The first square output generator
     square1: Square,
     /// The second square output generator
@@ -637,144 +637,21 @@ pub struct APU {
     noise: Noise,
     /// The DMC sample generator
     dmc: DMC,
-    /// Used to time frame ticks
-    frame_tick: u16,
-    /// Used to time sample ticks
-    sample_tick: u16,
-    /// The number of ticks after which to reset the sample tick.
-    /// This is determined from the sample rate at runtime
-    sample_cap: u16,
     /// The current frame period
     frame_period: u8,
-    /// The current frame value
-    frame_value: u8,
     /// Whether or not to trigger IRQs
     frame_irq: bool
 }
 
-impl APU {
-    pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
-        let sample_cap = (1_790_000 / sample_rate) as u16;
-        let tnd_table = make_tnd_table();
-        let pulse_table = make_pulse_table();
-        APU {
-            channel: tx,
-            filter: FilterChain::new(sample_rate),
-            tnd_table, pulse_table,
-            square1: Square::new(true), square2: Square::new(false),
-            triangle: Triangle::new(), noise: Noise::new(1),
+impl APUState {
+    pub fn new() -> Self {
+        APUState {
+            square1: Square::new(true),
+            square2: Square::new(false),
+            triangle: Triangle::new(),
+            noise: Noise::new(1),
             dmc: DMC::new(),
-            frame_tick: 0, sample_tick: 0, sample_cap,
-            frame_period: 0, frame_value: 0, frame_irq: false
-        }
-    }
-
-    /// Steps the apu forward by one CPU tick
-    pub fn step(&mut self) {
-        // step timer
-        self.frame_tick += 1;
-        // we can use the first bit of the frame_tick as an even odd flag
-        let toggle = self.frame_tick & 1 == 0;
-        self.step_timer(toggle);
-        // This is equivalent to firing at roughly 240 hz
-        if self.frame_tick >= 7458 {
-            self.frame_tick = 0;
-            self.step_framecounter();
-        }
-        self.sample_tick += 1;
-        if self.sample_tick >= self.sample_cap {
-            self.sample_tick = 0;
-            self.send_sample();
-        }
-    }
-
-    fn send_sample(&mut self) {
-        let output = self.output();
-        self.channel.send(output).unwrap();
-    }
-
-    fn output(&mut self) -> f32 {
-        let p1 = self.square1.output();
-        let p2 = self.square2.output();
-        let t = self.triangle.output();
-        let n = self.noise.output();
-        let d = self.dmc.output();
-        // TODO: figure out if these bound checks are a bug somewhere else
-        let pulse_out = self.pulse_table.get((p1 + p2) as usize);
-        let tnd_out = self.tnd_table.get((3 * t + 2 * n + d) as usize);
-        pulse_out.unwrap_or(&0.0) + tnd_out.unwrap_or(&0.0)
-    }
-
-    fn step_timer(&mut self, toggle: bool) {
-        if toggle {
-            self.square1.step_timer();
-            self.square2.step_timer();
-            self.noise.step_timer();
-            self.dmc.step_timer();
-        }
-        self.triangle.step_timer();
-    }
-
-    fn step_framecounter(&mut self) {
-        match self.frame_period {
-            4 => {
-                self.frame_value = (self.frame_value + 1) % 4;
-                match self.frame_value {
-                    0 | 2 => self.step_envelope(),
-                    1 => {
-                        self.step_envelope();
-                        self.step_sweep();
-                        self.step_length();
-                    }
-                    3 => {
-                        self.step_envelope();
-                        self.step_sweep();
-                        self.step_length();
-                        self.fire_irq();
-                    }
-                    // This can't happen because of the module 4
-                    _ => {}
-                }
-            }
-            5 => {
-                self.frame_value = (self.frame_value + 1) % 5;
-                match self.frame_value {
-                    1 | 3 => self.step_envelope(),
-                    0 | 2 => {
-                        self.step_envelope();
-                        self.step_sweep();
-                        self.step_length();
-                    }
-                    // We don't want to do anything for 5
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn step_envelope(&mut self) {
-        self.square1.step_envelope();
-        self.square2.step_envelope();
-        self.triangle.step_counter();
-        self.noise.step_envelope();
-    }
-
-    fn step_sweep(&mut self) {
-        self.square1.step_sweep();
-        self.square2.step_sweep();
-    }
-
-    fn step_length(&mut self) {
-        self.square1.step_length();
-        self.square2.step_length();
-        self.triangle.step_length();
-        self.noise.step_length();
-    }
-
-    fn fire_irq(&self) {
-        if self.frame_irq {
-            //m.cpu.set_irq();
+            frame_period: 0, frame_irq: false
         }
     }
 
@@ -871,4 +748,153 @@ impl APU {
         }
     }
 
+    fn step_envelope(&mut self) {
+        self.square1.step_envelope();
+        self.square2.step_envelope();
+        self.triangle.step_counter();
+        self.noise.step_envelope();
+    }
+
+    fn step_sweep(&mut self) {
+        self.square1.step_sweep();
+        self.square2.step_sweep();
+    }
+
+    fn step_length(&mut self) {
+        self.square1.step_length();
+        self.square2.step_length();
+        self.triangle.step_length();
+        self.noise.step_length();
+    }
+}
+
+
+/// Represents the audio processing unit
+pub struct APU {
+    /// The channel used to send output to
+    channel: Sender<f32>,
+    /// The chain of filters used on the output of the generators
+    filter: FilterChain,
+    // The 2 tables used to find the height of the wave output
+    tnd_table: [f32; 31],
+    pulse_table: [f32; 203],
+    /// Used to time frame ticks
+    frame_tick: u16,
+    /// Used to time sample ticks
+    sample_tick: u16,
+    /// The number of ticks after which to reset the sample tick.
+    /// This is determined from the sample rate at runtime
+    sample_cap: u16,
+    /// The current frame value
+    frame_value: u8,
+}
+
+impl APU {
+    pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
+        let sample_cap = (1_790_000 / sample_rate) as u16;
+        let tnd_table = make_tnd_table();
+        let pulse_table = make_pulse_table();
+        APU {
+            channel: tx,
+            filter: FilterChain::new(sample_rate),
+            tnd_table, pulse_table,
+            frame_tick: 0, sample_tick: 0, sample_cap,
+            frame_value: 0
+        }
+    }
+
+    /// Steps the apu forward by one CPU tick
+    pub fn step(&mut self, m: &mut MemoryBus) {
+        // step timer
+        self.frame_tick += 1;
+        // we can use the first bit of the frame_tick as an even odd flag
+        let toggle = self.frame_tick & 1 == 0;
+        self.step_timer(m, toggle);
+        // This is equivalent to firing at roughly 240 hz
+        if self.frame_tick >= 7458 {
+            self.frame_tick = 0;
+            self.step_framecounter(m);
+        }
+        self.sample_tick += 1;
+        if self.sample_tick >= self.sample_cap {
+            self.sample_tick = 0;
+            self.send_sample(m);
+        }
+    }
+
+    fn send_sample(&mut self, m: &mut MemoryBus) {
+        let output = self.output(m);
+        let filtered = self.filter.step(output);
+        self.channel.send(filtered).unwrap();
+    }
+
+    fn output(&mut self, m: &mut MemoryBus) -> f32 {
+        let p1 = m.apu.square1.output();
+        let p2 = m.apu.square2.output();
+        let t = m.apu.triangle.output();
+        let n = m.apu.noise.output();
+        let d = m.apu.dmc.output();
+        // TODO: figure out if these bound checks are a bug somewhere else
+        let pulse_out = self.pulse_table.get((p1 + p2) as usize);
+        let tnd_out = self.tnd_table.get((3 * t + 2 * n + d) as usize);
+        pulse_out.unwrap_or(&0.0) + tnd_out.unwrap_or(&0.0)
+    }
+
+    fn step_timer(&mut self, m: &mut MemoryBus, toggle: bool) {
+        if toggle {
+            m.apu.square1.step_timer();
+            m.apu.square2.step_timer();
+            m.apu.noise.step_timer();
+            let address = m.apu.dmc.current_address;
+            let read = m.cpu_read(address);
+            if m.apu.dmc.step_timer(read) {
+                m.cpu.add_stall(4);
+            }
+        }
+        m.apu.triangle.step_timer();
+    }
+
+    fn step_framecounter(&mut self, m: &mut MemoryBus) {
+        match m.apu.frame_period {
+            4 => {
+                self.frame_value = (self.frame_value + 1) % 4;
+                match self.frame_value {
+                    0 | 2 => m.apu.step_envelope(),
+                    1 => {
+                        m.apu.step_envelope();
+                        m.apu.step_sweep();
+                        m.apu.step_length();
+                    }
+                    3 => {
+                        m.apu.step_envelope();
+                        m.apu.step_sweep();
+                        m.apu.step_length();
+                        self.fire_irq(m);
+                    }
+                    // This can't happen because of the module 4
+                    _ => {}
+                }
+            }
+            5 => {
+                self.frame_value = (self.frame_value + 1) % 5;
+                match self.frame_value {
+                    1 | 3 => m.apu.step_envelope(),
+                    0 | 2 => {
+                        m.apu.step_envelope();
+                        m.apu.step_sweep();
+                        m.apu.step_length();
+                    }
+                    // We don't want to do anything for 5
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn fire_irq(&self, m: &mut MemoryBus) {
+        if m.apu.frame_irq {
+            m.cpu.set_irq();
+        }
+    }
 }

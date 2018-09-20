@@ -1,6 +1,6 @@
 mod mapper2;
 
-use super::apu::APU;
+use super::apu::APUState;
 use super::cart::{Cart, CartReadingError, Mirroring};
 use super::controller::Controller;
 use super::cpu::CPUState;
@@ -33,7 +33,7 @@ pub struct MemoryBus {
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
     pub mapper: Box<Mapper>,
-    pub apu: APU,
+    pub apu: APUState,
     pub cpu: CPUState,
     pub ppu: PPUState,
     // public for access by the cpu
@@ -47,13 +47,12 @@ impl MemoryBus {
     /// Returns an error if the mapper is unkown or the cart fails to read
     /// The apu needs to be passed explicitly, because the mem bus doesn't
     /// know things like the samplerate.
-    pub fn with_rom(buffer: &[u8], apu: APU) -> Result<Self, CartReadingError> {
+    pub fn with_rom(buffer: &[u8]) -> Result<Self, CartReadingError> {
         let cart_res = Cart::from_bytes(buffer);
         cart_res.and_then(|cart| Mapper::with_cart(cart).map(|mapper| {
             MemoryBus {
                 mapper,
-                /// Fill this with an actual value
-                apu,
+                apu: APUState::new(),
                 cpu: CPUState::new(),
                 ppu: PPUState::new(),
                 controller1: Controller::new(),
@@ -101,7 +100,7 @@ impl MemoryBus {
                 let adr = 0x2000 + a % 8;
                 self.ppu.write_register(&mut self.mapper, adr, value);
             }
-            a if a < 0x4014 => self.apu.write_register(address, value),
+            a if a < 0x4014 => self.apu.write_register(a, value),
             0x4014 => {
                 self.ppu.write_register(&mut self.mapper, 0x4014, value);
                 self.write_dma(value);

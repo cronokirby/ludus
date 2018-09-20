@@ -13,6 +13,7 @@ use std::sync::mpsc::Sender;
 /// Is also responsible for holding ram,
 /// as well as communication between processors.
 pub struct Console {
+    apu: APU,
     cpu: CPU,
     ppu: PPU
 }
@@ -22,13 +23,14 @@ impl Console {
         -> Result<Self, CartReadingError>
         {
         // Todo, use an actual sample rate
-        let apu = APU::new(tx, sample_rate);
         // Will fail if the cart couldn't be read
-        let mem_res = MemoryBus::with_rom(rom_buffer, apu);
+        let mem_res = MemoryBus::with_rom(rom_buffer);
         mem_res.map(|mut memory| {
             let ppu = PPU::new(&mut memory);
             let cpu = CPU::new(memory);
-            Console { cpu, ppu }
+            Console {
+                apu: APU::new(tx, sample_rate), cpu, ppu
+            }
         })
     }
 
@@ -39,7 +41,7 @@ impl Console {
             self.ppu.step(m);
         }
         for _ in 0..cpucycles {
-            m.apu.step();
+            self.apu.step(m);
         }
         cpucycles
     }
