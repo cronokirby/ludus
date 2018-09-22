@@ -36,7 +36,7 @@ const DMC_TABLE: [u8; 16] = [
 ];
 
 /// Constructs a new tnd table
-fn make_tnd_table() -> [f32; 31] {
+fn make_pulse_table() -> [f32; 31] {
     let mut arr = [0.0; 31];
     for i in 0..31 {
         arr[i] = 95.52 / (8128.0 / (i as f32) + 100.0);
@@ -45,7 +45,7 @@ fn make_tnd_table() -> [f32; 31] {
 }
 
 /// Constructs a new pulse table
-fn make_pulse_table() -> [f32; 203] {
+fn make_tnd_table() -> [f32; 203] {
     let mut arr = [0.0; 203];
     for i in 0..203 {
         arr[i] = 163.37 / (24329.0 / (i as f32) + 100.0);
@@ -776,8 +776,8 @@ pub struct APU {
     /// The chain of filters used on the output of the generators
     filter: FilterChain,
     // The 2 tables used to find the height of the wave output
-    tnd_table: [f32; 31],
-    pulse_table: [f32; 203],
+    pulse_table: [f32; 31],
+    tnd_table: [f32; 203],
     /// Used to time frame ticks
     frame_tick: u16,
     /// Used to time sample ticks
@@ -835,9 +835,9 @@ impl APU {
         let n = m.apu.noise.output();
         let d = m.apu.dmc.output();
         // TODO: figure out if these bound checks are a bug somewhere else
-        let pulse_out = self.pulse_table.get((p1 + p2) as usize);
-        let tnd_out = self.tnd_table.get((3 * t + 2 * n + d) as usize);
-        pulse_out.unwrap_or(&0.0) + tnd_out.unwrap_or(&0.0)
+        let pulse_out = self.pulse_table[(p1 + p2) as usize];
+        let tnd_out = self.tnd_table[(3 * t + 2 * n + d) as usize];
+        pulse_out + tnd_out
     }
 
     fn step_timer(&mut self, m: &mut MemoryBus, toggle: bool) {
