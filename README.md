@@ -20,15 +20,10 @@ gameplay.)
 ludus rom
 ```
 
-### Rudimentary debugging
-There's also an interactive mode, where the command line is used
-to advance frame by frame and read values, this is mainly used for
-development, and will likely be removed from a final version.
+By default the largest scaling is chosen, but this can be set manually
+as well:
 ```
-ludus rom -b
-```
-```
-ludus rom --debug
+ludus rom --scale 2
 ```
 
 ATM ludus only supports .nes (INES) files, which are the most common
@@ -57,11 +52,11 @@ In addition, Esc closes the window, and Enter resets the console.
 ### Working
 - CPU, and thus core gameplay
 - PPU, and thus graphics
+- APU, but extremely buggy for some odd reason...
 - Basic controls via hardwired key mapping
 - Mappers 0 and 2, so common games like Super Mario Bros, and Donkey Kong
 
 ### Not Working
-- APU, so no audio atm
 - Save States of any kind
 - Keeping SRAM files for each game
 - More complex Mappers
