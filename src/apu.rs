@@ -78,7 +78,7 @@ impl Filter {
         let (c, a0) = frequency_constants(sample_rate, cutoff);
         Filter {
             b0: a0, b1: a0, a: (1.0 - c) * a0,
-            prev_x: 1.0, prev_y: 1.0
+            prev_x: 0.0, prev_y: 0.0
         }
     }
 
@@ -87,7 +87,7 @@ impl Filter {
         let (c, a0) = frequency_constants(sample_rate, cutoff);
         Filter {
             b0: c * a0, b1: -c * a0, a: (1.0 - c) * a0,
-            prev_x: 1.0, prev_y: 1.0
+            prev_x: 0.0, prev_y: 0.0
         }
     }
 
