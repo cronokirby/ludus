@@ -110,9 +110,7 @@ impl MemoryBus {
                 self.controller1.write(value);
                 self.controller2.write(value);
             }
-            0x4017 => {
-                //panic!("Unimplemented APU write");
-            }
+            0x4017 => self.apu.write_register(address, value),
             a if a >= 0x6000 => self.mapper.write(address, value),
             a => {
                 panic!("Unhandled CPU write at {:X}", a);
