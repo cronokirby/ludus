@@ -21,19 +21,6 @@ use std::time::Instant;
 use std::sync::mpsc::{Sender, Receiver, channel};
 
 
-/// Attempts to disassemble a rom, panicing on exits
-pub fn disassemble(rom_name: &str) {
-    let mut buffer: Vec<u8> = Vec::new();
-    let mut file = File::open(rom_name)
-        .expect("Couldn't open the ROM file");
-    file.read_to_end(&mut buffer).expect("Couldn't read ROM file");
-    let cart = cart::Cart::from_bytes(&buffer)
-        .expect("Invalid ROM format");
-    println!("Disassembling ROM...");
-    cpu::disassemble(&cart.prg);
-}
-
-
 /// Matches a string to corresponding screen scaling sheme
 /// Matches anything besides 1, 2, and 4 to FitScreen
 pub fn get_scale(s: &str) -> Scale {
@@ -42,42 +29,6 @@ pub fn get_scale(s: &str) -> Scale {
         "2" => Scale::X2,
         "4" => Scale::X4,
         _ => Scale::FitScreen
-    }
-}
-
-
-/// Represents the different kinds of Interactions generated
-/// in a cli debug session.
-enum Interaction {
-    /// Advance the emulator forward
-    Advance,
-    /// Print the cpu state
-    CPU,
-    /// Gets a value from RAM
-    Ram(u16),
-    /// Run automatically
-    Run
-}
-
-/// Gets an interaction by reading a line
-/// Returns None if no valid Interaction could be fetched
-fn get_interaction() -> Option<Interaction> {
-    print!("> ");
-    stdout().flush().expect("Couldn't flush stdout");
-    let mut input = String::new();
-    match stdin().read_line(&mut input) {
-        Err(_) => None,
-        Ok(_) => {
-            let s: Vec<_> = input.trim().split_whitespace().collect();
-            match s.as_slice() {
-                [] => Some(Interaction::Advance),
-                ["run"] => Some(Interaction::Run),
-                ["cpu"] => Some(Interaction::CPU),
-                ["ram", s] => u16::from_str_radix(s, 16).ok()
-                    .map(|adr| Interaction::Ram(adr)),
-                _ => None
-            }
-        }
     }
 }
 
@@ -100,42 +51,6 @@ fn get_console(rom_name: &str, tx: Sender<f32>, sample_rate: u32)
         }
     })
 }
-
-
-/// Debugs a rom with GUI
-/*
-pub fn debug(rom_name: &str) {
-    let mut console = get_console(rom_name);
-    let opts = WindowOptions::default();
-    let mut window = Window::new(
-        "Ludus (Debug) - Esc to pause", 256, 240, opts
-    ).expect("Couldn't make window");
-
-    let mut run = false;
-    loop {
-        // just loop steps forever
-        if run {
-            run_loop(&mut console, &mut window);
-            // Transition back to frame stepping
-            run = false;
-        }
-        match get_interaction() {
-            None => println!("Unknown command"),
-            Some(Interaction::Advance) => {
-                console.step_frame();
-                console.update_window(&mut window);
-            }
-            Some(Interaction::CPU) => {
-                console.print_cpu();
-            }
-            Some(Interaction::Ram(adr)) => {
-                console.print_ram(adr);
-            }
-            Some(Interaction::Run) => run = true
-        }
-    }
-}*/
-
 
 /// Runs a rom file with GUI and all
 pub fn run(rom_name: &str, scale: Scale) {
