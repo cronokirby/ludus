@@ -491,16 +491,16 @@ impl PPU {
     fn fetch_lowtile_byte(&mut self, m: &mut MemoryBus) {
         let fine_y = (m.ppu.v >> 12) & 7;
         let table = m.ppu.flg_backgroundtable;
-        let tile = self.nametable_byte as u16;
-        let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
+        let tile = u16::from(self.nametable_byte);
+        let address = 0x1000 * u16::from(table) + tile * 16 + fine_y;
         self.lowtile_byte = m.ppu.read(&m.mapper, address);
     }
 
     fn fetch_hightile_byte(&mut self, m: &mut MemoryBus) {
         let fine_y = (m.ppu.v >> 12) & 7;
         let table = m.ppu.flg_backgroundtable;
-        let tile = self.nametable_byte as u16;
-        let address = 0x1000 * (table as u16) + tile * 16 + fine_y;
+        let tile = u16::from(self.nametable_byte);
+        let address = 0x1000 * u16::from(table) + tile * 16 + fine_y;
         self.hightile_byte = m.ppu.read(&m.mapper, address + 8);
     }
 
@@ -513,9 +513,9 @@ impl PPU {
             self.lowtile_byte <<= 1;
             self.hightile_byte <<= 1;
             data <<= 4;
-            data |= (a | p1 | p2) as u32;
+            data |= u32::from(a | p1 | p2);
         }
-        self.tiledata |= data as u64;
+        self.tiledata |= u64::from(data);
     }
 
     fn fetch_sprite_pattern(&self, m: &mut MemoryBus, i: usize, mut row: i32) -> u32 {
@@ -526,7 +526,7 @@ impl PPU {
                 row = 7 - row;
             }
             let table = m.ppu.flg_spritetable;
-            0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
+            0x1000 * u16::from(table) + u16::from(tile) * 16 + (row as u16)
         } else {
             if attributes & 0x80 == 0x80 {
                 row = 15 - row;
@@ -537,7 +537,7 @@ impl PPU {
                 tile += 1;
                 row -= 8;
             }
-            0x1000 * (table as u16) + (tile as u16) * 16 + (row as u16)
+            0x1000 * u16::from(table) + u16::from(tile) * 16 + (row as u16)
         };
         let a = (attributes & 3) << 2;
         let mut lowtile_byte = m.ppu.read(&m.mapper, address);
@@ -545,7 +545,7 @@ impl PPU {
         let mut data: u32 = 0;
         for _ in 0..8 {
             let (p1, p2) = if attributes & 0x40 == 0x40 {
-                let p1 = (lowtile_byte & 1) << 0;
+                let p1 = lowtile_byte & 1;
                 let p2 = (hightile_byte & 1) << 1;
                 lowtile_byte >>= 1;
                 hightile_byte >>= 1;
@@ -558,7 +558,7 @@ impl PPU {
                 (p1, p2)
             };
             data <<= 4;
-            data |= (a | p1 | p2) as u32;
+            data |= u32::from(a | p1 | p2);
         }
         data
     }
@@ -570,7 +570,7 @@ impl PPU {
             let y = m.ppu.oam[i * 4];
             let a = m.ppu.oam[i * 4 + 2];
             let x = m.ppu.oam[i * 4 + 3];
-            let row = self.scanline - (y as i32);
+            let row = self.scanline - i32::from(y);
             if row < 0 || row >= h {
                 continue;
             }
@@ -619,7 +619,7 @@ impl PPU {
             (0, 0)
         } else {
             for i in 0..self.sprite_count {
-                let sp_off = self.sprite_positions[i as usize] as i32;
+                let sp_off = i32::from(self.sprite_positions[i as usize]);
                 let mut offset = (self.cycle - 1) - sp_off;
                 if offset < 0 || offset > 7 {
                     continue;
@@ -666,7 +666,7 @@ impl PPU {
                 }
             }
         };
-        let mut color_index = m.ppu.read_palette(color as u16) % 64;
+        let mut color_index = m.ppu.read_palette(u16::from(color)) % 64;
         if m.ppu.flg_grayscale != 0 {
             color_index &= 0x30;
         }
