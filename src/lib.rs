@@ -15,7 +15,7 @@ mod tests;
 use self::minifb::{Key, Scale, WindowOptions, Window};
 
 use std::fs::File;
-use std::io::{Read, Write, stdin, stdout};
+use std::io::Read;
 use std::thread;
 use std::time::Instant;
 use std::sync::mpsc::{Sender, Receiver, channel};
