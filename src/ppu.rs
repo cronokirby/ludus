@@ -250,7 +250,7 @@ impl PPUState {
     }
 
     fn write_mask(&mut self, value: u8) {
-        self.flg_grayscale = (value >> 0) & 1;
+        self.flg_grayscale = value & 1;
         self.flg_showleftbg = (value >> 1) & 1;
         self.flg_showleftsprites = (value >> 2) & 1;
         self.flg_showbg = (value >> 3) & 1;

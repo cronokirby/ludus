@@ -213,7 +213,7 @@ impl CPU {
     }
 
     fn set_flags(&mut self, flags: u8) {
-        self.c = (flags >> 0) & 1;
+        self.c = flags & 1;
         self.z = (flags >> 1) & 1;
         self.i = (flags >> 2) & 1;
         self.d = (flags >> 3) & 1;
