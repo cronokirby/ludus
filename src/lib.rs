@@ -66,11 +66,9 @@ fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
     let child = thread::spawn(move || {
         let channels = format.channels as usize;
         event_loop.run(move |_, data| {
-            match data {
-                cpal::StreamData::Output {
-                    buffer: cpal::UnknownTypeOutputBuffer::F32(mut buffer),
-                } => {
-                    for sample in buffer.chunks_mut(channels) {
+            if let cpal::StreamData::Output { buffer } = data {
+                if let cpal::UnknownTypeOutputBuffer::F32(mut output) = buffer {
+                    for sample in output.chunks_mut(channels) {
                         let value = rx.recv().unwrap();
                         for out in sample.iter_mut() {
                             // convert between 0,1 and -1 1
@@ -78,7 +76,6 @@ fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
                         }
                     }
                 }
-                _ => {}
             }
         })
     });
