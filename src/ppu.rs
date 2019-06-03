@@ -236,8 +236,9 @@ impl PPUState {
         }
     }
 
+    // See: https://wiki.nesdev.com/w/index.php/PPU_registers#PPUCTRL
     fn write_control(&mut self, value: u8) {
-        self.flg_nametable = (value >> 0) & 3;
+        self.flg_nametable = value & 2;
         self.flg_increment = (value >> 2) & 1;
         self.flg_spritetable = (value >> 3) & 1;
         self.flg_backgroundtable = (value >> 4) & 1;
