@@ -5,14 +5,70 @@ use super::minifb::Window;
 type VBuffer = [u32; 256 * 240];
 
 const PALETTE: [u32; 64] = [
-    0xFF75_7575, 0xFF27_1B8F, 0xFF00_00AB, 0xFF47_009F, 0xFF8F_0077, 0xFFAB_0013, 0xFFA7_0000, 0xFF7F_0B00,
-    0xFF43_2F00, 0xFF00_4700, 0xFF00_5100, 0xFF00_3F17, 0xFF1B_3F5F, 0xFF00_0000, 0xFF00_0000, 0xFF00_0000,
-    0xFFBC_BCBC, 0xFF00_73EF, 0xFF23_3BEF, 0xFF83_00F3, 0xFFBF_00BF, 0xFFE7_005B, 0xFFDB_2B00, 0xFFCB_4F0F,
-    0xFF8B_7300, 0xFF00_9700, 0xFF00_AB00, 0xFF00_933B, 0xFF00_838B, 0xFF00_0000, 0xFF00_0000, 0xFF00_0000,
-    0xFFFF_FFFF, 0xFF3F_BFFF, 0xFF5F_97FF, 0xFFA7_8BFD, 0xFFF7_7BFF, 0xFFFF_77B7, 0xFFFF_7763, 0xFFFF_9B3B,
-    0xFFF3_BF3F, 0xFF83_D313, 0xFF4F_DF4B, 0xFF58_F898, 0xFF00_EBDB, 0xFF00_0000, 0xFF00_0000, 0xFF00_0000,
-    0xFFFF_FFFF, 0xFFAB_E7FF, 0xFFC7_D7FF, 0xFFD7_CBFF, 0xFFFF_C7FF, 0xFFFF_C7DB, 0xFFFF_BFB3, 0xFFFF_DBAB,
-    0xFFFF_E7A3, 0xFFE3_FFA3, 0xFFAB_F3BF, 0xFFB3_FFCF, 0xFF9F_FFF3, 0xFF00_0000, 0xFF00_0000, 0xFF00_0000,
+    0xFF75_7575,
+    0xFF27_1B8F,
+    0xFF00_00AB,
+    0xFF47_009F,
+    0xFF8F_0077,
+    0xFFAB_0013,
+    0xFFA7_0000,
+    0xFF7F_0B00,
+    0xFF43_2F00,
+    0xFF00_4700,
+    0xFF00_5100,
+    0xFF00_3F17,
+    0xFF1B_3F5F,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFFBC_BCBC,
+    0xFF00_73EF,
+    0xFF23_3BEF,
+    0xFF83_00F3,
+    0xFFBF_00BF,
+    0xFFE7_005B,
+    0xFFDB_2B00,
+    0xFFCB_4F0F,
+    0xFF8B_7300,
+    0xFF00_9700,
+    0xFF00_AB00,
+    0xFF00_933B,
+    0xFF00_838B,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFFFF_FFFF,
+    0xFF3F_BFFF,
+    0xFF5F_97FF,
+    0xFFA7_8BFD,
+    0xFFF7_7BFF,
+    0xFFFF_77B7,
+    0xFFFF_7763,
+    0xFFFF_9B3B,
+    0xFFF3_BF3F,
+    0xFF83_D313,
+    0xFF4F_DF4B,
+    0xFF58_F898,
+    0xFF00_EBDB,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFFFF_FFFF,
+    0xFFAB_E7FF,
+    0xFFC7_D7FF,
+    0xFFD7_CBFF,
+    0xFFFF_C7FF,
+    0xFFFF_C7DB,
+    0xFFFF_BFB3,
+    0xFFFF_DBAB,
+    0xFFFF_E7A3,
+    0xFFE3_FFA3,
+    0xFFAB_F3BF,
+    0xFFB3_FFCF,
+    0xFF9F_FFF3,
+    0xFF00_0000,
+    0xFF00_0000,
+    0xFF00_0000,
 ];
 
 /// Represents openly modifiable PPU state
@@ -667,13 +723,11 @@ impl PPU {
         }
 
         // Sprite logic
-        if rendering {
-            if self.cycle == 257 {
-                if visibleline {
-                    self.evaluate_sprites(m);
-                } else {
-                    self.sprite_count = 0;
-                }
+        if rendering && self.cycle == 257 {
+            if visibleline {
+                self.evaluate_sprites(m);
+            } else {
+                self.sprite_count = 0;
             }
         }
 
