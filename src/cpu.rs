@@ -1,76 +1,50 @@
 use super::memory::MemoryBus;
 
-
 // The various addressing modes of each opcode
 const OP_MODES: [u8; 256] = [
-    6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
-    1, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
-    6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
-    6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 8, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
-    5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3,
-    5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3,
-    5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
-    5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
-    10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2
+    6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1, 10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2,
+    2, 2, 2, 1, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1, 10, 9, 6, 9, 12, 12, 12, 12, 6, 3,
+    6, 3, 2, 2, 2, 2, 6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1, 10, 9, 6, 9, 12, 12, 12,
+    12, 6, 3, 6, 3, 2, 2, 2, 2, 6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 8, 1, 1, 1, 10, 9, 6, 9,
+    12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2, 5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1, 10,
+    9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3, 5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1,
+    1, 1, 10, 9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3, 5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6,
+    5, 1, 1, 1, 1, 10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2, 5, 7, 5, 7, 11, 11, 11, 11,
+    6, 5, 6, 5, 1, 1, 1, 1, 10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
 ];
 
 // The size of each instruction in bytes
 // we sacrifice space to avoid casting
 const OP_SIZES: [u16; 256] = [
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 0, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 0, 3, 0, 0,
-    2, 2, 2, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-    2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 0, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 0, 3, 0, 0,
+    2, 2, 2, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+    2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0, 2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
 ];
 
 // How many cycles each instruction takes
 const OP_CYCLES: [i32; 256] = [
-    7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-    6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
-    2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
-    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
-    2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
-    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
-    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
-    2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7
+    7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, 2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, 2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 ];
 
 // The op codes which add a cycle when crossing pages accessing memory
 // doesn't include branch instructions, since the page crossing check
 // happens when the branch is known to be successful or not
 const EXTRA_PAGECYCLE_OPS: [u8; 23] = [
-    0x7D, 0x79, 0x71, 0x3D, 0x39, 0x31, 0xDD, 0xD9, 0xD1,
-    0x5D, 0x59, 0x51, 0xBD, 0xB9, 0xB1, 0xBE, 0xBC,
-    0x1D, 0x19, 0x11, 0xFD, 0xF9, 0xF1
+    0x7D, 0x79, 0x71, 0x3D, 0x39, 0x31, 0xDD, 0xD9, 0xD1, 0x5D, 0x59, 0x51, 0xBD, 0xB9, 0xB1, 0xBE,
+    0xBC, 0x1D, 0x19, 0x11, 0xFD, 0xF9, 0xF1,
 ];
-
 
 /// Represents the type of addressing an op uses
 #[derive(Clone, Copy)]
@@ -87,7 +61,7 @@ enum Addressing {
     Relative,
     ZeroPage,
     ZeroPageX,
-    ZeroPageY
+    ZeroPageY,
 }
 
 impl Addressing {
@@ -96,24 +70,30 @@ impl Addressing {
     fn from_byte(mode: u8) -> Self {
         use self::Addressing::*;
         let modes = [
-            Absolute, AbsoluteX, AbsoluteY,
-            Accumulator, Immediate, Implied,
-            IndexedIndirect, Indirect, IndirectIndexed,
+            Absolute,
+            AbsoluteX,
+            AbsoluteY,
+            Accumulator,
+            Immediate,
+            Implied,
+            IndexedIndirect,
+            Indirect,
+            IndirectIndexed,
             Relative,
-            ZeroPage, ZeroPageX, ZeroPageY
+            ZeroPage,
+            ZeroPageX,
+            ZeroPageY,
         ];
         modes[mode as usize - 1]
     }
 }
 
-
 /// Represents the different types of Interrupts the CPU might deal with
 #[derive(Clone)]
 enum Interrupt {
     NMI,
-    IRQ
+    IRQ,
 }
-
 
 /// Returns true if two addresses return different pages
 fn pages_differ(a: u16, b: u16) -> bool {
@@ -122,7 +102,11 @@ fn pages_differ(a: u16, b: u16) -> bool {
 
 /// Returns the number of extra cycles used by a branch instruction
 fn branch_cycles(pc: u16, address: u16) -> i32 {
-    if pages_differ(pc, address) { 2 } else { 1 }
+    if pages_differ(pc, address) {
+        2
+    } else {
+        1
+    }
 }
 
 /// Represents public CPU state
@@ -136,7 +120,8 @@ pub struct CPUState {
 impl CPUState {
     pub fn new() -> Self {
         CPUState {
-            interrupt: None, stall: 0
+            interrupt: None,
+            stall: 0,
         }
     }
 
@@ -189,16 +174,27 @@ pub struct CPU {
     /// Negative Flag
     n: u8,
     /// Shared acess to the memory bus along with the ppu,
-    pub mem: MemoryBus
+    pub mem: MemoryBus,
 }
 
 impl CPU {
     /// Creates a new CPU
     pub fn new(mem: MemoryBus) -> Self {
         let mut cpu = CPU {
-            pc: 0, sp: 0, a: 0, x: 0, y: 0, c: 0,
-            z: 0, i: 0, d: 0, b: 0, u: 0, v: 0, n: 0,
-            mem
+            pc: 0,
+            sp: 0,
+            a: 0,
+            x: 0,
+            y: 0,
+            c: 0,
+            z: 0,
+            i: 0,
+            d: 0,
+            b: 0,
+            u: 0,
+            v: 0,
+            n: 0,
+            mem,
         };
         cpu.reset();
         cpu
@@ -290,14 +286,14 @@ impl CPU {
     fn set_z(&mut self, r: u8) {
         self.z = match r {
             0 => 1,
-            _ => 0
+            _ => 0,
         }
     }
 
     fn set_n(&mut self, r: u8) {
         self.n = match r & 0x80 {
             0 => 0,
-            _ => 1
+            _ => 1,
         }
     }
 
@@ -335,7 +331,6 @@ impl CPU {
         self.pc = self.read16(0xFFFE);
         self.i = 1;
     }
-
 
     /// Steps the cpu forward by a single instruction
     /// Returns the number of cycles passed
@@ -441,7 +436,6 @@ impl CPU {
             }
         };
 
-
         self.pc += OP_SIZES[opcode as usize];
         cycles += OP_CYCLES[opcode as usize];
         if page_crossed && EXTRA_PAGECYCLE_OPS.contains(&opcode) {
@@ -462,7 +456,7 @@ impl CPU {
                 } else {
                     self.c = 0;
                 }
-                if (a^b) & 0x80 == 0 && (a ^ a2) & 0x80 != 0 {
+                if (a ^ b) & 0x80 == 0 && (a ^ a2) & 0x80 != 0 {
                     self.v = 1;
                 } else {
                     self.v = 0;
@@ -475,23 +469,21 @@ impl CPU {
                 self.set_zn(a);
             }
             // ASL
-            0x0A | 0x06 | 0x16 | 0x0E | 0x1E => {
-                match addressing {
-                    Addressing::Accumulator => {
-                        self.c = (self.a >> 7) & 1;
-                        let a = self.a << 1;
-                        self.a = a;
-                        self.set_zn(a);
-                    }
-                   _ => {
-                        let mut value = self.read(address);
-                        self.c = (value >> 7) & 1;
-                        value <<= 1;
-                        self.write(address, value);
-                        self.set_zn(value);
-                    }
+            0x0A | 0x06 | 0x16 | 0x0E | 0x1E => match addressing {
+                Addressing::Accumulator => {
+                    self.c = (self.a >> 7) & 1;
+                    let a = self.a << 1;
+                    self.a = a;
+                    self.set_zn(a);
                 }
-            }
+                _ => {
+                    let mut value = self.read(address);
+                    self.c = (value >> 7) & 1;
+                    value <<= 1;
+                    self.write(address, value);
+                    self.set_zn(value);
+                }
+            },
             // BCC
             0x90 => {
                 if self.c == 0 {
@@ -518,11 +510,11 @@ impl CPU {
             }
             // BIT
             0x24 | 0x2C => {
-               let value = self.read(address);
-               self.v = (value >> 6) & 1;
-               let a = self.a;
-               self.set_z(value & a);
-               self.set_n(value);
+                let value = self.read(address);
+                self.v = (value >> 6) & 1;
+                let a = self.a;
+                self.set_z(value & a);
+                self.set_n(value);
             }
             // BMI
             0x30 => {
@@ -667,25 +659,23 @@ impl CPU {
                 self.set_zn(y);
             }
             // LSR
-            0x4A | 0x46 | 0x56 | 0x4E | 0x5E => {
-                match addressing {
-                    Addressing::Accumulator => {
-                        self.c = self.a & 1;
-                        let a = self.a >> 1;
-                        self.a = a;
-                        self.set_zn(a);
-                    }
-                    _ => {
-                        let mut value = self.read(address);
-                        self.c = value & 1;
-                        value >>= 1;
-                        self.write(address, value);
-                        self.set_zn(value);
-                    }
+            0x4A | 0x46 | 0x56 | 0x4E | 0x5E => match addressing {
+                Addressing::Accumulator => {
+                    self.c = self.a & 1;
+                    let a = self.a >> 1;
+                    self.a = a;
+                    self.set_zn(a);
                 }
-            }
+                _ => {
+                    let mut value = self.read(address);
+                    self.c = value & 1;
+                    value >>= 1;
+                    self.write(address, value);
+                    self.set_zn(value);
+                }
+            },
             // NOP
-            0xEA => {},
+            0xEA => {}
             // ORA
             0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => {
                 let a = self.a | self.read(address);
@@ -711,45 +701,41 @@ impl CPU {
                 self.set_flags((p & 0xEF) | 0x20);
             }
             // ROL
-            0x2A | 0x26 | 0x36 | 0x2E | 0x3E => {
-                match addressing {
-                    Addressing::Accumulator => {
-                        let c = self.c;
-                        self.c = (self.a >> 7) & 1;
-                        let a = (self.a << 1) | c;
-                        self.a = a;
-                        self.set_zn(a);
-                    }
-                    _ => {
-                        let c = self.c;
-                        let mut value = self.read(address);
-                        self.c = (value >> 7) & 1;
-                        value = (value << 1) | c;
-                        self.write(address, value);
-                        self.set_zn(value);
-                    }
+            0x2A | 0x26 | 0x36 | 0x2E | 0x3E => match addressing {
+                Addressing::Accumulator => {
+                    let c = self.c;
+                    self.c = (self.a >> 7) & 1;
+                    let a = (self.a << 1) | c;
+                    self.a = a;
+                    self.set_zn(a);
                 }
-            }
+                _ => {
+                    let c = self.c;
+                    let mut value = self.read(address);
+                    self.c = (value >> 7) & 1;
+                    value = (value << 1) | c;
+                    self.write(address, value);
+                    self.set_zn(value);
+                }
+            },
             // ROR
-            0x6A | 0x66 | 0x76 | 0x6E | 0x7E => {
-                match addressing {
-                    Addressing::Accumulator => {
-                        let c = self.c;
-                        self.c = self.a & 1;
-                        let a = (self.a >> 1) | (c << 7);
-                        self.a = a;
-                        self.set_zn(a);
-                    }
-                    _ => {
-                        let c = self.c;
-                        let mut value = self.read(address);
-                        self.c = value & 1;
-                        value = (value >> 1) | (c << 7);
-                        self.write(address, value);
-                        self.set_zn(value);
-                    }
+            0x6A | 0x66 | 0x76 | 0x6E | 0x7E => match addressing {
+                Addressing::Accumulator => {
+                    let c = self.c;
+                    self.c = self.a & 1;
+                    let a = (self.a >> 1) | (c << 7);
+                    self.a = a;
+                    self.set_zn(a);
                 }
-            }
+                _ => {
+                    let c = self.c;
+                    let mut value = self.read(address);
+                    self.c = value & 1;
+                    value = (value >> 1) | (c << 7);
+                    self.write(address, value);
+                    self.set_zn(value);
+                }
+            },
             // RTI
             0x40 => {
                 let p = self.pull();
@@ -771,7 +757,7 @@ impl CPU {
                 } else {
                     self.c = 0;
                 }
-                if (a^b) & 0x80 != 0 && (a^a2) & 0x80 != 0 {
+                if (a ^ b) & 0x80 != 0 && (a ^ a2) & 0x80 != 0 {
                     self.v = 1;
                 } else {
                     self.v = 0;
@@ -830,14 +816,20 @@ impl CPU {
                 self.a = y;
                 self.set_zn(y);
             }
-            _ => panic!("Unimplented Op {:02X}", opcode)
+            _ => panic!("Unimplented Op {:02X}", opcode),
         }
         cycles
     }
 
     /// Prints the current state of the CPU
     pub fn print_state(&self) {
-        println!("A: {:X} X: {:X} Y: {:X} F: {:X} SP: {:X}",
-            self.a, self.x, self.y, self.get_flags(), self.sp);
+        println!(
+            "A: {:X} X: {:X} Y: {:X} F: {:X} SP: {:X}",
+            self.a,
+            self.x,
+            self.y,
+            self.get_flags(),
+            self.sp
+        );
     }
 }

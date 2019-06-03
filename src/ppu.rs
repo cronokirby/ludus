@@ -2,32 +2,22 @@ use super::memory::{Mapper, MemoryBus};
 
 use super::minifb::Window;
 
-
 type VBuffer = [u32; 256 * 240];
 
 const PALETTE: [u32; 64] = [
-    0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F,
-    0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00,
-    0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17,
-    0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000,
-    0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3,
-    0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F,
-    0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B,
-    0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000,
-    0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD,
-    0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B,
-    0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898,
-    0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000,
-    0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF,
-    0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB,
-    0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF,
-    0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000
+    0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00,
+    0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F,
+    0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B,
+    0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000,
+    0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB,
+    0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000,
 ];
-
 
 /// Represents openly modifiable PPU state
 pub struct PPUState {
-     // Memory
+    // Memory
     palettes: [u8; 32],
     nametables: [u8; 2048],
     pub oam: [u8; 256], // public to allow cpu DMA transfer
@@ -92,19 +82,34 @@ pub struct PPUState {
 impl PPUState {
     pub fn new() -> Self {
         PPUState {
-            palettes: [0; 32], nametables: [0; 2048],
-            oam: [0; 256], v: 0, t: 0, w: 0, x: 0,
+            palettes: [0; 32],
+            nametables: [0; 2048],
+            oam: [0; 256],
+            v: 0,
+            t: 0,
+            w: 0,
+            x: 0,
             register: 0,
-            nmi_occurred: false, nmi_output: false,
-            nmi_previous: false, nmi_delay: 0,
-            flg_nametable: 0, flg_increment: 0,
-            flg_spritetable: 0, flg_backgroundtable: 0,
-            flg_spritesize: 0, flg_masterslave: 0,
+            nmi_occurred: false,
+            nmi_output: false,
+            nmi_previous: false,
+            nmi_delay: 0,
+            flg_nametable: 0,
+            flg_increment: 0,
+            flg_spritetable: 0,
+            flg_backgroundtable: 0,
+            flg_spritesize: 0,
+            flg_masterslave: 0,
             flg_grayscale: 0,
-            flg_showleftbg: 0, flg_showleftsprites: 0,
-            flg_showbg: 0, flg_showsprites: 0,
-            flg_redtint: 0, flg_greentint: 0, flg_bluetint: 0,
-            flg_sprite0hit: 0, flg_spriteoverflow: 0,
+            flg_showleftbg: 0,
+            flg_showleftsprites: 0,
+            flg_showbg: 0,
+            flg_showsprites: 0,
+            flg_redtint: 0,
+            flg_greentint: 0,
+            flg_bluetint: 0,
+            flg_sprite0hit: 0,
+            flg_spriteoverflow: 0,
             oam_address: 0,
             buffer_data: 0,
         }
@@ -127,9 +132,7 @@ impl PPUState {
                 let mirrored = mode.mirror_address(a);
                 self.nametables[(mirrored % 2048) as usize]
             }
-            a if a < 0x4000 => {
-                self.read_palette(a % 32)
-            }
+            a if a < 0x4000 => self.read_palette(a % 32),
             a => {
                 panic!("Unhandled PPU memory read at {:X}", a);
             }
@@ -218,10 +221,7 @@ impl PPUState {
         value
     }
 
-    pub fn write_register(
-        &mut self, mapper: &mut Box<Mapper>,
-        address: u16, value: u8)
-    {
+    pub fn write_register(&mut self, mapper: &mut Box<Mapper>, address: u16, value: u8) {
         self.register = value;
         match address {
             0x2000 => self.write_control(value),
@@ -327,7 +327,7 @@ impl PPUState {
                     0
                 }
                 31 => 0,
-                val => val + 1
+                val => val + 1,
             };
             self.v = (self.v & 0xFC1F) | (y << 5);
         }
@@ -363,25 +363,29 @@ pub struct PPU {
     sprite_patterns: [u32; 8],
     sprite_positions: [u8; 8],
     sprite_priorities: [u8; 8],
-    sprite_indices: [u8; 8]
-    //mem: Rc<RefCell<MemoryBus>>
+    sprite_indices: [u8; 8], //mem: Rc<RefCell<MemoryBus>>
 }
 
 impl PPU {
     /// Creates a new PPU
     pub fn new(m: &mut MemoryBus) -> Self {
         let mut ppu = PPU {
-            cycle: 0, scanline: 0,
+            cycle: 0,
+            scanline: 0,
             front: Box::new([0xFF000000; 256 * 240]),
             back: Box::new([0xFF000000; 256 * 240]),
             is_front: true,
-            nametable_byte: 0, attributetable_byte: 0,
-            lowtile_byte: 0, hightile_byte: 0,
+            nametable_byte: 0,
+            attributetable_byte: 0,
+            lowtile_byte: 0,
+            hightile_byte: 0,
             tiledata: 0,
             f: 0,
             sprite_count: 0,
-            sprite_patterns: [0; 8], sprite_positions: [0; 8],
-            sprite_priorities: [0; 8], sprite_indices: [0; 8]
+            sprite_patterns: [0; 8],
+            sprite_positions: [0; 8],
+            sprite_priorities: [0; 8],
+            sprite_indices: [0; 8],
         };
         ppu.reset(m);
         ppu
@@ -409,7 +413,8 @@ impl PPU {
             window.update_with_buffer(self.front.as_ref())
         } else {
             window.update_with_buffer(self.back.as_ref())
-        }.expect("Failed to update window");
+        }
+        .expect("Failed to update window");
     }
 
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
@@ -420,8 +425,7 @@ impl PPU {
 
     fn fetch_attributetable_byte(&mut self, m: &mut MemoryBus) {
         let v = m.ppu.v;
-        let address = 0x23C0 | (v & 0x0C00)
-            | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
+        let address = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
         let shift = ((v >> 4) & 4) | (v & 2);
         let read = m.ppu.read(&m.mapper, address);
         self.attributetable_byte = ((read >> shift) & 3) << 2;
@@ -457,11 +461,9 @@ impl PPU {
         self.tiledata |= data as u64;
     }
 
-    fn fetch_sprite_pattern(&self, m: &mut MemoryBus,
-        i: usize, mut row: i32) -> u32
-    {
-        let mut tile = m.ppu.oam[i*4 + 1];
-        let attributes = m.ppu.oam[i*4 + 2];
+    fn fetch_sprite_pattern(&self, m: &mut MemoryBus, i: usize, mut row: i32) -> u32 {
+        let mut tile = m.ppu.oam[i * 4 + 1];
+        let attributes = m.ppu.oam[i * 4 + 2];
         let address = if m.ppu.flg_spritesize == 0 {
             if attributes & 0x80 == 0x80 {
                 row = 7 - row;
@@ -505,16 +507,12 @@ impl PPU {
     }
 
     fn evaluate_sprites(&mut self, m: &mut MemoryBus) {
-        let h: i32 = if m.ppu.flg_spritesize == 0 {
-            8
-        } else {
-            16
-        };
+        let h: i32 = if m.ppu.flg_spritesize == 0 { 8 } else { 16 };
         let mut count = 0;
         for i in 0..64 {
-            let y = m.ppu.oam[i*4];
-            let a = m.ppu.oam[i*4 + 2];
-            let x = m.ppu.oam[i*4 + 3];
+            let y = m.ppu.oam[i * 4];
+            let a = m.ppu.oam[i * 4 + 2];
+            let x = m.ppu.oam[i * 4 + 3];
             let row = self.scanline - (y as i32);
             if row < 0 || row >= h {
                 continue;
@@ -567,16 +565,16 @@ impl PPU {
                 let sp_off = self.sprite_positions[i as usize] as i32;
                 let mut offset = (self.cycle - 1) - sp_off;
                 if offset < 0 || offset > 7 {
-                    continue
+                    continue;
                 }
                 offset = 7 - offset;
                 let shift = (offset * 4) as u8;
                 let pattern = self.sprite_patterns[i as usize];
                 let color = ((pattern >> shift) & 0x0F) as u8;
                 if color % 4 == 0 {
-                    continue
+                    continue;
                 }
-                return (i as u8, color)
+                return (i as u8, color);
             }
             (0, 0)
         }
@@ -599,7 +597,7 @@ impl PPU {
             (false, false) => 0,
             (false, true) => sprite | 0x10,
             (true, false) => background,
-            (true, true) =>  {
+            (true, true) => {
                 let ind = i as usize;
                 if self.sprite_indices[ind] == 0 && x < 255 {
                     m.ppu.flg_sprite0hit = 1;
@@ -703,7 +701,7 @@ impl PPU {
                 self.cycle = 0;
                 self.scanline = 0;
                 self.f ^= 1;
-                return
+                return;
             }
         }
 

@@ -5,12 +5,16 @@ pub struct Controller {
     buttons: [bool; 8],
     /// What button is currently being read
     index: u8,
-    strobe: bool
+    strobe: bool,
 }
 
 impl Controller {
     pub fn new() -> Self {
-        Controller { buttons: [false; 8], index: 0, strobe: false }
+        Controller {
+            buttons: [false; 8],
+            index: 0,
+            strobe: false,
+        }
     }
 
     pub fn set_buttons(&mut self, buttons: [bool; 8]) {

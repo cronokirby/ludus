@@ -1,12 +1,11 @@
 use super::super::cart::{Cart, Mirroring};
 use super::Mapper;
 
-
 pub struct Mapper2 {
     cart: Cart,
     prg_banks: i32,
     prgbank1: usize,
-    prgbank2: usize
+    prgbank2: usize,
 }
 
 impl Mapper2 {
@@ -14,7 +13,12 @@ impl Mapper2 {
         let prg_banks = cart.prg.len() / 0x4000;
         let prgbank1 = 0;
         let prgbank2 = prg_banks - 1;
-        Mapper2 { cart, prg_banks: prg_banks as i32, prgbank1, prgbank2 }
+        Mapper2 {
+            cart,
+            prg_banks: prg_banks as i32,
+            prgbank1,
+            prgbank2,
+        }
     }
 }
 
@@ -33,7 +37,7 @@ impl Mapper for Mapper2 {
                 self.cart.prg[index]
             }
             a if a >= 0x6000 => {
-                let shifted = (address- 0x6000) as usize;
+                let shifted = (address - 0x6000) as usize;
                 self.cart.sram[shifted]
             }
             a => {

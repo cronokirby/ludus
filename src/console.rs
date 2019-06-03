@@ -1,5 +1,5 @@
-use super::cart::CartReadingError;
 use super::apu::APU;
+use super::cart::CartReadingError;
 use super::cpu::CPU;
 use super::memory::MemoryBus;
 use super::ppu::PPU;
@@ -8,20 +8,21 @@ use super::minifb::Window;
 
 use std::sync::mpsc::Sender;
 
-
 /// Used to act as an owner of everything needed to run a game
 /// Is also responsible for holding ram,
 /// as well as communication between processors.
 pub struct Console {
     apu: APU,
     cpu: CPU,
-    ppu: PPU
+    ppu: PPU,
 }
 
 impl Console {
-    pub fn new(rom_buffer: &[u8], tx: Sender<f32>, sample_rate: u32)
-        -> Result<Self, CartReadingError>
-        {
+    pub fn new(
+        rom_buffer: &[u8],
+        tx: Sender<f32>,
+        sample_rate: u32,
+    ) -> Result<Self, CartReadingError> {
         // Todo, use an actual sample rate
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
@@ -29,7 +30,9 @@ impl Console {
             let ppu = PPU::new(&mut memory);
             let cpu = CPU::new(memory);
             Console {
-                apu: APU::new(tx, sample_rate), cpu, ppu
+                apu: APU::new(tx, sample_rate),
+                cpu,
+                ppu,
             }
         })
     }
@@ -62,11 +65,19 @@ impl Console {
         self.ppu.update_window(window);
     }
 
-    pub fn update_controller(&mut self,
-        a: bool, b: bool, select: bool, start: bool,
-        up: bool, down: bool, left: bool, right: bool)
-    {
-        self.cpu.set_buttons([a, b, select, start, up, down, left, right]);
+    pub fn update_controller(
+        &mut self,
+        a: bool,
+        b: bool,
+        select: bool,
+        start: bool,
+        up: bool,
+        down: bool,
+        left: bool,
+        right: bool,
+    ) {
+        self.cpu
+            .set_buttons([a, b, select, start, up, down, left, right]);
     }
 
     /// Resets everything to it's initial state

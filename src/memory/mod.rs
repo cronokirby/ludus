@@ -6,7 +6,6 @@ use super::controller::Controller;
 use super::cpu::CPUState;
 use super::ppu::PPUState;
 
-
 /// Used to abstract over the different types of Mappers
 pub trait Mapper {
     fn read(&self, address: u16) -> u8;
@@ -21,11 +20,10 @@ impl Mapper {
         match cart.mapper {
             0 => Ok(Box::new(mapper2::Mapper2::new(cart))),
             2 => Ok(Box::new(mapper2::Mapper2::new(cart))),
-            m => Err(CartReadingError::UnknownMapper(m))
+            m => Err(CartReadingError::UnknownMapper(m)),
         }
     }
 }
-
 
 /// Holds cart memory
 pub struct MemoryBus {
@@ -39,7 +37,7 @@ pub struct MemoryBus {
     // public for access by the cpu
     pub controller1: Controller,
     controller2: Controller,
-    ram: [u8; 0x2000]
+    ram: [u8; 0x2000],
 }
 
 impl MemoryBus {
@@ -49,17 +47,17 @@ impl MemoryBus {
     /// know things like the samplerate.
     pub fn with_rom(buffer: &[u8]) -> Result<Self, CartReadingError> {
         let cart_res = Cart::from_bytes(buffer);
-        cart_res.and_then(|cart| Mapper::with_cart(cart).map(|mapper| {
-            MemoryBus {
+        cart_res.and_then(|cart| {
+            Mapper::with_cart(cart).map(|mapper| MemoryBus {
                 mapper,
                 apu: APUState::new(),
                 cpu: CPUState::new(),
                 ppu: PPUState::new(),
                 controller1: Controller::new(),
                 controller2: Controller::new(),
-                ram: [0; 0x2000]
-            }
-        }))
+                ram: [0; 0x2000],
+            })
+        })
     }
 
     /// Clears ram as well as cpu and ppu state
@@ -78,15 +76,9 @@ impl MemoryBus {
             }
             0x4014 => self.ppu.read_register(&self.mapper, 0x4014),
             0x4015 => self.apu.read_register(address),
-            0x4016 => {
-                self.controller1.read()
-            }
-            0x4017 => {
-                self.controller2.read()
-            }
-            a if a >= 0x6000 => {
-                self.mapper.read(address)
-            }
+            0x4016 => self.controller1.read(),
+            0x4017 => self.controller2.read(),
+            a if a >= 0x6000 => self.mapper.read(address),
             a => {
                 panic!("Unhandled CPU read at {:X}", a);
             }

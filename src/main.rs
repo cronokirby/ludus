@@ -3,7 +3,6 @@ extern crate ludus;
 
 use argparse::{ArgumentParser, Store};
 
-
 fn main() {
     let mut rom_name = "".to_string();
     let mut scale = "".to_string();

@@ -3,36 +3,29 @@ use super::memory::MemoryBus;
 use std::f32::consts::PI;
 use std::sync::mpsc::Sender;
 
-
 const LENGTH_TABLE: [u8; 32] = [
-    10, 254, 20, 2, 40, 4, 80, 6,
-    160, 8, 60, 10, 14, 12, 26, 14,
-    12, 16, 24, 18, 48, 20, 96, 22,
-    192, 24, 72, 26, 16, 28, 32, 30
+    10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14, 12, 16, 24, 18, 48, 20, 96, 22,
+    192, 24, 72, 26, 16, 28, 32, 30,
 ];
 
 const DUTY_TABLE: [[u8; 8]; 4] = [
     [0, 1, 0, 0, 0, 0, 0, 0],
     [0, 1, 1, 0, 0, 0, 0, 0],
     [0, 1, 1, 1, 1, 0, 0, 0],
-    [1, 0, 0, 1, 1, 1, 1, 1]
+    [1, 0, 0, 1, 1, 1, 1, 1],
 ];
 
 const TRIANGLE_TABLE: [u8; 32] = [
-    15, 14, 13, 12, 11, 10, 9, 8,
-    7, 6, 5, 4, 3, 2, 1, 0,
-    0, 1, 2, 3, 4, 5, 6, 7,
-    8, 9, 10, 11, 12, 13, 14, 15
+    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    13, 14, 15,
 ];
 
 const NOISE_TABLE: [u16; 16] = [
-    4, 8, 16, 32, 64, 96, 128, 160,
-    202, 254, 380, 508, 762, 1016, 2034, 4068
+    4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068,
 ];
 
 const DMC_TABLE: [u8; 16] = [
-    214, 190, 170, 160, 143, 127, 113, 107,
-    95, 80, 71, 64, 53, 42, 36, 27
+    214, 190, 170, 160, 143, 127, 113, 107, 95, 80, 71, 64, 53, 42, 36, 27,
 ];
 
 /// Constructs a new tnd table
@@ -53,7 +46,6 @@ fn make_tnd_table() -> [f32; 203] {
     arr
 }
 
-
 /// Represents a first order filter, implementing the following formula:
 /// y_n = b0 * x_n + b1 * x_(n-1) - a y_(n-1)
 struct Filter {
@@ -62,7 +54,7 @@ struct Filter {
     a: f32,
     /// Caches the previous x value
     prev_x: f32,
-    prev_y: f32
+    prev_y: f32,
 }
 
 /// Used to calculate the frequency constants used in Filters
@@ -77,8 +69,11 @@ impl Filter {
     fn low_pass(sample_rate: u32, cutoff: f32) -> Filter {
         let (c, a0) = frequency_constants(sample_rate, cutoff);
         Filter {
-            b0: a0, b1: a0, a: (1.0 - c) * a0,
-            prev_x: 0.0, prev_y: 0.0
+            b0: a0,
+            b1: a0,
+            a: (1.0 - c) * a0,
+            prev_x: 0.0,
+            prev_y: 0.0,
         }
     }
 
@@ -86,8 +81,11 @@ impl Filter {
     fn high_pass(sample_rate: u32, cutoff: f32) -> Filter {
         let (c, a0) = frequency_constants(sample_rate, cutoff);
         Filter {
-            b0: c * a0, b1: -c * a0, a: (1.0 - c) * a0,
-            prev_x: 0.0, prev_y: 0.0
+            b0: c * a0,
+            b1: -c * a0,
+            a: (1.0 - c) * a0,
+            prev_x: 0.0,
+            prev_y: 0.0,
         }
     }
 
@@ -103,7 +101,7 @@ impl Filter {
 struct FilterChain {
     high1: Filter,
     high2: Filter,
-    low: Filter
+    low: Filter,
 }
 
 impl FilterChain {
@@ -111,7 +109,7 @@ impl FilterChain {
         FilterChain {
             high1: Filter::high_pass(sample_rate, 90.0),
             high2: Filter::high_pass(sample_rate, 440.0),
-            low: Filter::low_pass(sample_rate, 14000.0)
+            low: Filter::low_pass(sample_rate, 14000.0),
         }
     }
 
@@ -121,7 +119,6 @@ impl FilterChain {
         self.low.step(x2)
     }
 }
-
 
 /// Represents the Square signal generator of the APU
 struct Square {
@@ -164,23 +161,33 @@ struct Square {
     /// Current envelope volume
     envelope_volume: u8,
     /// Base volume
-    constant_volume: u8
+    constant_volume: u8,
 }
 
 impl Square {
     fn new(first_channel: bool) -> Self {
         Square {
-            enabled: false, first_channel,
-            length_enabled: false, length_value: 0,
-            timer_period: 0, timer_value: 0,
-            duty_mode: 0, duty_value: 0,
-            sweep_reload: false, sweep_enabled: false,
-            sweep_negate: false, sweep_shift: 0,
-            sweep_period: 0, sweep_value: 0,
-            envelope_enabled: false, envelope_loop: false,
+            enabled: false,
+            first_channel,
+            length_enabled: false,
+            length_value: 0,
+            timer_period: 0,
+            timer_value: 0,
+            duty_mode: 0,
+            duty_value: 0,
+            sweep_reload: false,
+            sweep_enabled: false,
+            sweep_negate: false,
+            sweep_shift: 0,
+            sweep_period: 0,
+            sweep_value: 0,
+            envelope_enabled: false,
+            envelope_loop: false,
             envelope_start: false,
-            envelope_period: 0, envelope_value: 0,
-            envelope_volume: 0, constant_volume: 0
+            envelope_period: 0,
+            envelope_value: 0,
+            envelope_volume: 0,
+            constant_volume: 0,
         }
     }
 
@@ -297,7 +304,6 @@ impl Square {
     }
 }
 
-
 /// Represents the triangle signal simulator
 struct Triangle {
     /// Whether or not output is enabled
@@ -316,18 +322,21 @@ struct Triangle {
     /// Counts down to 0 before restting to counter_period
     counter_value: u8,
     /// Controls whether or not the value will wrap around
-    counter_reload: bool
+    counter_reload: bool,
 }
 
 impl Triangle {
     fn new() -> Self {
         Triangle {
             enabled: false,
-            length_enabled: false, length_value: 0,
-            timer_period: 0, timer_value: 0,
+            length_enabled: false,
+            length_value: 0,
+            timer_period: 0,
+            timer_value: 0,
             duty_value: 0,
-            counter_period: 0, counter_value: 0,
-            counter_reload: false
+            counter_period: 0,
+            counter_value: 0,
+            counter_reload: false,
         }
     }
 
@@ -353,7 +362,7 @@ impl Triangle {
         if self.timer_value == 0 {
             self.timer_value = self.timer_period;
             if self.length_value > 0 && self.counter_value > 0 {
-               self.duty_value = (self.duty_value + 1) % 32;
+                self.duty_value = (self.duty_value + 1) % 32;
             }
         } else {
             self.timer_value -= 1;
@@ -390,7 +399,6 @@ impl Triangle {
     }
 }
 
-
 /// Represents the noise signal generator
 struct Noise {
     /// Whether or not output is enabled for this component
@@ -419,20 +427,26 @@ struct Noise {
     /// Used to control the volume of the envelope effect
     envelope_volume: u8,
     /// Background volume
-    constant_volume: u8
+    constant_volume: u8,
 }
 
 impl Noise {
     fn new(shift_register: u16) -> Self {
         Noise {
-            enabled: false, mode: false,
+            enabled: false,
+            mode: false,
             shift_register,
-            length_enabled: true, length_value: 0,
-            timer_period: 0, timer_value: 0,
-            envelope_enabled: false, envelope_loop: false,
-            envelope_start: false, envelope_period: 0,
-            envelope_value: 0, envelope_volume: 0,
-            constant_volume: 0
+            length_enabled: true,
+            length_value: 0,
+            timer_period: 0,
+            timer_value: 0,
+            envelope_enabled: false,
+            envelope_loop: false,
+            envelope_start: false,
+            envelope_period: 0,
+            envelope_value: 0,
+            envelope_volume: 0,
+            constant_volume: 0,
         }
     }
 
@@ -491,7 +505,7 @@ impl Noise {
         }
     }
 
-    fn output(&mut self) -> u8{
+    fn output(&mut self) -> u8 {
         if !self.enabled {
             0
         } else if self.length_value == 0 {
@@ -505,7 +519,6 @@ impl Noise {
         }
     }
 }
-
 
 /// Generator for DMC Samples
 struct DMC {
@@ -531,18 +544,24 @@ struct DMC {
     /// Whether or not to loop back at the end of a sound cycle
     do_loop: bool,
     /// Whether or not an irq ocurred
-    irq: bool
+    irq: bool,
 }
 
 impl DMC {
     fn new() -> Self {
         DMC {
-            enabled: false, value: 0,
-            sample_address: 0, sample_length: 0,
-            current_address: 0, current_length: 0,
-            shift_register: 0, bit_count: 0,
-            tick_period: 0, tick_value: 0,
-            do_loop: false, irq: false
+            enabled: false,
+            value: 0,
+            sample_address: 0,
+            sample_length: 0,
+            current_address: 0,
+            current_length: 0,
+            shift_register: 0,
+            bit_count: 0,
+            tick_period: 0,
+            tick_value: 0,
+            do_loop: false,
+            irq: false,
         }
     }
 
@@ -624,7 +643,6 @@ impl DMC {
     }
 }
 
-
 /// Contains registers that are written to across the memory bus
 pub struct APUState {
     /// The first square output generator
@@ -640,7 +658,7 @@ pub struct APUState {
     /// The current frame period
     frame_period: u8,
     /// Whether or not to trigger IRQs
-    frame_irq: bool
+    frame_irq: bool,
 }
 
 impl APUState {
@@ -651,7 +669,8 @@ impl APUState {
             triangle: Triangle::new(),
             noise: Noise::new(1),
             dmc: DMC::new(),
-            frame_period: 0, frame_irq: false
+            frame_period: 0,
+            frame_irq: false,
         }
     }
 
@@ -659,7 +678,7 @@ impl APUState {
         match address {
             0x4015 => self.read_status(),
             // Some addresses may be read by bad games
-            _ => 0
+            _ => 0,
         }
     }
 
@@ -768,7 +787,6 @@ impl APUState {
     }
 }
 
-
 /// Represents the audio processing unit
 pub struct APU {
     /// The channel used to send output to
@@ -797,9 +815,12 @@ impl APU {
         APU {
             channel: tx,
             filter: FilterChain::new(sample_rate),
-            tnd_table, pulse_table,
-            frame_tick: 0, sample_tick: 0, sample_cap,
-            frame_value: 0
+            tnd_table,
+            pulse_table,
+            frame_tick: 0,
+            sample_tick: 0,
+            sample_cap,
+            frame_value: 0,
         }
     }
 

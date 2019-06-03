@@ -2,14 +2,14 @@
 #[derive(Debug)]
 pub enum CartReadingError {
     UnrecognisedFormat,
-    UnknownMapper(u8)
+    UnknownMapper(u8),
 }
 
 /// Represents the type of mirroring present on a cartridge
 #[derive(Debug, Clone)]
 pub enum Mirroring {
     Horizontal,
-    Vertical
+    Vertical,
 }
 
 impl Mirroring {
@@ -18,7 +18,7 @@ impl Mirroring {
     pub fn from_bool(b: bool) -> Self {
         match b {
             false => Mirroring::Horizontal,
-            true => Mirroring::Vertical
+            true => Mirroring::Vertical,
         }
     }
 
@@ -26,7 +26,7 @@ impl Mirroring {
     pub fn is_vertical(&self) -> bool {
         match self {
             Mirroring::Horizontal => false,
-            Mirroring::Vertical => true
+            Mirroring::Vertical => true,
         }
     }
 
@@ -42,7 +42,7 @@ impl Mirroring {
             (Mirroring::Vertical, 1) => 1,
             (Mirroring::Vertical, 2) => 0,
             (Mirroring::Vertical, 3) => 1,
-            _ => 0
+            _ => 0,
         };
         0x2000 + table * 0x0400 + (address % 0x0400)
     }
@@ -63,7 +63,7 @@ pub struct Cart {
     /// What type of mirroring is used in this cart
     pub mirroring: Mirroring,
     /// Indicates whether or not a battery backed RAM is present
-    pub has_battery: bool
+    pub has_battery: bool,
 }
 
 impl Cart {
@@ -94,7 +94,7 @@ impl Cart {
             sram: [0; 0x2000],
             mapper: (flag6 >> 4) | (flag7 & 0xF0),
             mirroring: Mirroring::from_bool(flag6 & 0b1 > 0),
-            has_battery: flag6 & 0b10 > 0
+            has_battery: flag6 & 0b10 > 0,
         }
     }
 }

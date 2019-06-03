@@ -9,8 +9,7 @@ fn make_ines(
     mapper: u8,
     prg_chunks: usize,
     chr_chunks: usize,
-    ) -> Vec<u8>
-{
+) -> Vec<u8> {
     let trainer_offset = if trainer { 512 } else { 0 };
     let mut buffer = {
         let rom_size = 0x4000 * prg_chunks + 0x2000 * chr_chunks;
@@ -55,9 +54,7 @@ fn make_ines(
 
 #[test]
 fn cart_decoding() {
-    let buffer = make_ines(
-        Mirroring::Horizontal,
-        true, false, 1, 1, 1);
+    let buffer = make_ines(Mirroring::Horizontal, true, false, 1, 1, 1);
     let cart_res = Cart::from_bytes(&buffer);
     assert!(cart_res.is_ok());
     let cart = cart_res.unwrap(); // we just asserted, so it's ok
