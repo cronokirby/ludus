@@ -41,7 +41,7 @@ fn make_pulse_table() -> [f32; 31] {
 fn make_tnd_table() -> [f32; 203] {
     let mut arr = [0.0; 203];
     for (i, item) in arr.iter_mut().enumerate() {
-        *item = 163.37 / (24329.0 / (i as f32) + 100.0);
+        *item = 163.67 / (24329.0 / (i as f32) + 100.0);
     }
     arr
 }
