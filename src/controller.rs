@@ -1,4 +1,5 @@
 /// Represents a controller
+#[derive(Default)]
 pub struct Controller {
     /// A bitfield of the buttons, in the following order:
     /// A, B, Select, Start, Up, Down, Left, Right
@@ -10,11 +11,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new() -> Self {
-        Controller {
-            buttons: [false; 8],
-            index: 0,
-            strobe: false,
-        }
+        Controller::default()
     }
 
     pub fn set_buttons(&mut self, buttons: [bool; 8]) {

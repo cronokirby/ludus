@@ -110,6 +110,7 @@ fn branch_cycles(pc: u16, address: u16) -> i32 {
 }
 
 /// Represents public CPU state
+#[derive(Default)]
 pub struct CPUState {
     /// Represents the interrupt, None representing no interrupt
     interrupt: Option<Interrupt>,
@@ -119,10 +120,7 @@ pub struct CPUState {
 
 impl CPUState {
     pub fn new() -> Self {
-        CPUState {
-            interrupt: None,
-            stall: 0,
-        }
+        CPUState::default()
     }
 
     pub fn set_nmi(&mut self) {
