@@ -396,9 +396,7 @@ pub struct PPU {
     scanline: i32,
 
     // These need to boxed to avoid blowing up the stack
-    front: Box<VBuffer>,
-    back: Box<VBuffer>,
-    is_front: bool,
+    v_buffer: Box<VBuffer>,
 
     // Background temporary variables
     nametable_byte: u8,
@@ -423,9 +421,7 @@ impl PPU {
         let mut ppu = PPU {
             cycle: 0,
             scanline: 0,
-            front: Box::new([0xFF00_0000; 256 * 240]),
-            back: Box::new([0xFF00_0000; 256 * 240]),
-            is_front: true,
+            v_buffer: Box::new([0xFF00_0000; 256 * 240]),
             nametable_byte: 0,
             attributetable_byte: 0,
             lowtile_byte: 0,
@@ -454,17 +450,7 @@ impl PPU {
     /// Used to clear vbuffers to make image completely neutral
     /// This isn't called in the standard reset.
     pub fn clear_vbuffers(&mut self) {
-        self.front = Box::new([0xFF00_0000; 256 * 240]);
-        self.back = Box::new([0xFF00_0000; 256 * 240]);
-        self.is_front = true;
-    }
-
-    pub fn update_window(&self, video: &mut impl VideoDevice) {
-        if self.is_front {
-            video.blit_pixels(self.front.as_ref())
-        } else {
-            video.blit_pixels(self.back.as_ref())
-        }
+        self.v_buffer = Box::new([0xFF00_0000; 256 * 240]);
     }
 
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
@@ -583,8 +569,8 @@ impl PPU {
         self.sprite_count = count as i32;
     }
 
-    fn set_vblank(&mut self, m: &mut MemoryBus) {
-        self.is_front = !self.is_front;
+    fn set_vblank(&mut self, m: &mut MemoryBus, video: &mut impl VideoDevice) {
+        video.blit_pixels(self.v_buffer.as_ref());
         m.ppu.nmi_occurred = true;
         m.ppu.nmi_change();
     }
@@ -663,17 +649,13 @@ impl PPU {
         if m.ppu.flg_grayscale != 0 {
             color_index &= 0x30;
         }
-        let rgba = PALETTE[color_index as usize];
+        let argb = PALETTE[color_index as usize];
         let pos = (y * 256 + x) as usize;
-        if self.is_front {
-            self.back[pos] = rgba;
-        } else {
-            self.front[pos] = rgba;
-        }
+        self.v_buffer[pos] = argb;
     }
 
     /// Steps the ppu forward
-    pub fn step(&mut self, m: &mut MemoryBus) {
+    pub fn step(&mut self, m: &mut MemoryBus, video: &mut impl VideoDevice) {
         self.tick(m);
         let rendering = m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0;
         let preline = self.scanline == 261;
@@ -726,7 +708,7 @@ impl PPU {
 
         // Vblank logic
         if self.scanline == 241 && self.cycle == 1 {
-            self.set_vblank(m);
+            self.set_vblank(m, video);
         }
         if preline && self.cycle == 1 {
             self.clear_vblank(m);

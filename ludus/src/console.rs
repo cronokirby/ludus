@@ -31,11 +31,15 @@ impl Console {
         })
     }
 
-    pub fn step(&mut self, audio: &mut impl AudioDevice) -> i32 {
+    pub fn step<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) -> i32
+    where
+        A: AudioDevice,
+        V: VideoDevice,
+    {
         let cpucycles = self.cpu.step();
         let m = &mut self.cpu.mem;
         for _ in 0..cpucycles * 3 {
-            self.ppu.step(m);
+            self.ppu.step(m, video);
         }
         for _ in 0..cpucycles {
             self.apu.step(m, audio);
@@ -43,20 +47,24 @@ impl Console {
         cpucycles
     }
 
-    pub fn step_micros(&mut self, micros: u32, audio: &mut impl AudioDevice) {
+    pub fn step_micros<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V, micros: u32)
+    where
+        A: AudioDevice,
+        V: VideoDevice,
+    {
         // This emulates 1.79 cpu cycles per microsecond
         let mut cpu_cycles = ((micros * 179) / 100) as i32;
         while cpu_cycles > 0 {
-            cpu_cycles -= self.step(audio);
+            cpu_cycles -= self.step(audio, video);
         }
     }
 
-    pub fn step_frame(&mut self, audio: &mut impl AudioDevice) {
-        self.step_micros(1_000_000 / 60, audio);
-    }
-
-    pub fn update_window(&self, video: &mut impl VideoDevice) {
-        self.ppu.update_window(video);
+    pub fn step_frame<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V)
+    where
+        A: AudioDevice,
+        V: VideoDevice,
+    {
+        self.step_micros(audio, video, 1_000_000 / 60);
     }
 
     pub fn update_controller(&mut self, buttons: ButtonState) {

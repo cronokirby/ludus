@@ -121,8 +121,8 @@ fn run_loop(console: &mut console::Console, window: &mut WindowDevice, sender: &
             right: window.0.is_key_down(Key::D),
         };
         console.update_controller(buttons);
-        console.step_micros(duration.subsec_micros(), sender);
-        console.update_window(window);
+        console.step_micros(sender, window, duration.subsec_micros());
+        window.0.update();
     }
 }
 
