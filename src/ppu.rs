@@ -302,7 +302,7 @@ impl PPUState {
         self.flg_masterslave = (value >> 6) & 1;
         self.nmi_output = (value >> 7) & 1 == 1;
         self.nmi_change();
-        self.t = (self.t & 0xF3FF) | (((value as u16) & 0x03) << 10);
+        self.t = (self.t & 0xF3FF) | ((u16::from(value) & 0x03) << 10);
     }
 
     fn write_mask(&mut self, value: u8) {
@@ -328,22 +328,22 @@ impl PPUState {
 
     fn write_scroll(&mut self, value: u8) {
         if self.w == 0 {
-            self.t = (self.t & 0x7FE0) | ((value as u16) >> 3);
+            self.t = (self.t & 0x7FE0) | (u16::from(value) >> 3);
             self.x = value & 0x7;
             self.w = 1;
         } else {
-            let s1 = ((value as u16) & 0x7) << 12;
-            self.t = (self.t & 0xC1F) | (((value as u16) & 0xF8) << 2) | s1;
+            let s1 = (u16::from(value) & 0x7) << 12;
+            self.t = (self.t & 0xC1F) | ((u16::from(value) & 0xF8) << 2) | s1;
             self.w = 0;
         }
     }
 
     fn write_address(&mut self, value: u8) {
         if self.w == 0 {
-            self.t = (self.t & 0x80FF) | (((value as u16) & 0x3F) << 8);
+            self.t = (self.t & 0x80FF) | ((u16::from(value) & 0x3F) << 8);
             self.w = 1;
         } else {
-            self.t = (self.t & 0xFF00) | (value as u16);
+            self.t = (self.t & 0xFF00) | u16::from(value);
             self.v = self.t;
             self.w = 0;
         }
