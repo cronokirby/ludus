@@ -805,7 +805,8 @@ pub struct APU {
 
 impl APU {
     pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
-        let sample_cap = (1_790_000 / sample_rate) as u16;
+        // We need to round up, otherwise we'll slowly add latency to the music
+        let sample_cap = (1_790_000 / sample_rate) as u16 + 1;
         let tnd_table = make_tnd_table();
         let pulse_table = make_pulse_table();
         APU {
