@@ -71,8 +71,7 @@ fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
                     for sample in output.chunks_mut(channels) {
                         let value = rx.recv().unwrap();
                         for out in sample.iter_mut() {
-                            // convert between 0,1 and -1 1
-                            *out = 2.0 * value - 1.0;
+                            *out = value;
                         }
                     }
                 }
