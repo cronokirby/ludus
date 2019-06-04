@@ -562,7 +562,7 @@ impl PPU {
         let mut count = 0;
         for i in 0..64 {
             let y = m.ppu.oam.0[i * 4];
-            let a = m.ppu.oam.0[i * 4 + 2];
+            let a_reg = m.ppu.oam.0[i * 4 + 2];
             let x = m.ppu.oam.0[i * 4 + 3];
             let row = self.scanline - i32::from(y);
             if row < 0 || row >= h {
@@ -572,7 +572,7 @@ impl PPU {
                 let pattern = self.fetch_sprite_pattern(m, i, row);
                 self.sprite_patterns[count] = pattern;
                 self.sprite_positions[count] = x;
-                self.sprite_priorities[count] = (a >> 5) & 1;
+                self.sprite_priorities[count] = (a_reg >> 5) & 1;
                 self.sprite_indices[count] = i as u8;
             }
             count += 1;
@@ -642,9 +642,9 @@ impl PPU {
         if x < 8 && m.ppu.flg_showleftsprites == 0 {
             sprite = 0;
         }
-        let b = background % 4 != 0;
-        let s = sprite % 4 != 0;
-        let color = match (b, s) {
+        let bg = background % 4 != 0;
+        let sp = sprite % 4 != 0;
+        let color = match (bg, sp) {
             (false, false) => 0,
             (false, true) => sprite | 0x10,
             (true, false) => background,
