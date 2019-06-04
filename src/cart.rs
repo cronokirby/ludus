@@ -16,9 +16,10 @@ impl Mirroring {
     /// Create a mirroring from a boolean, representing whether or not
     /// the mirroring is vertical.
     pub fn from_bool(b: bool) -> Self {
-        match b {
-            false => Mirroring::Horizontal,
-            true => Mirroring::Vertical,
+        if b {
+            Mirroring::Vertical
+        } else {
+            Mirroring::Horizontal
         }
     }
 
