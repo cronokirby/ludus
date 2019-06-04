@@ -744,14 +744,13 @@ impl PPU {
                 m.cpu.set_nmi();
             }
         }
-
-        if m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0 {
-            if self.f == 1 && self.scanline == 261 && self.cycle == 339 {
-                self.cycle = 0;
-                self.scanline = 0;
-                self.f ^= 1;
-                return;
-            }
+        let show_something = m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0;
+        let should_reset = self.f == 1 && self.scanline == 261 && self.cycle == 339;
+        if show_something && should_reset {
+            self.cycle = 0;
+            self.scanline = 0;
+            self.f ^= 1;
+            return;
         }
 
         self.cycle += 1;
