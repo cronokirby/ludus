@@ -203,7 +203,7 @@ impl Square {
 
     fn write_sweep(&mut self, value: u8) {
         self.sweep_enabled = (value >> 7) & 1 == 1;
-        self.sweep_period = (value >> 4) & 7 + 1;
+        self.sweep_period = ((value >> 4) & 7) + 1;
         self.sweep_negate = (value >> 3) & 1 == 1;
         self.sweep_shift = value & 7;
         self.sweep_reload = true;
