@@ -387,11 +387,7 @@ impl Triangle {
     }
 
     fn output(&self) -> u8 {
-        if !self.enabled {
-            0
-        } else if self.length_value == 0 {
-            0
-        } else if self.counter_value == 0 {
+        if !self.enabled || self.length_value == 0 || self.counter_value == 0 {
             0
         } else {
             TRIANGLE_TABLE[self.duty_value as usize]
@@ -506,11 +502,7 @@ impl Noise {
     }
 
     fn output(&mut self) -> u8 {
-        if !self.enabled {
-            0
-        } else if self.length_value == 0 {
-            0
-        } else if self.shift_register & 1 == 1 {
+        if !self.enabled || self.length_value == 0 || self.shift_register & 1 == 1 {
             0
         } else if self.envelope_enabled {
             self.envelope_volume
