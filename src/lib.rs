@@ -7,6 +7,7 @@ pub mod console;
 pub mod controller;
 pub mod cpu;
 pub mod memory;
+pub mod ports;
 pub mod ppu;
 
 #[cfg(test)]
@@ -14,11 +15,30 @@ mod tests;
 
 use self::controller::ButtonState;
 use self::minifb::{Key, Scale, Window, WindowOptions};
+
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Instant;
+
+struct WindowDevice(Window);
+
+impl ports::VideoDevice for WindowDevice {
+    fn blit_pixels(&mut self, pixels: &[u32]) {
+        self.0
+            .update_with_buffer(pixels)
+            .expect("Couldn't update video device");
+    }
+}
+
+struct SenderDevice(Sender<f32>);
+
+impl ports::AudioDevice for SenderDevice {
+    fn push_sample(&mut self, sample: f32) {
+        self.0.send(sample).expect("Couldn't update audio device");
+    }
+}
 
 /// Matches a string to corresponding screen scaling sheme
 /// Matches anything besides 1, 2, and 4 to FitScreen
@@ -31,12 +51,12 @@ pub fn get_scale(s: &str) -> Scale {
     }
 }
 
-fn get_console(rom_name: &str, tx: Sender<f32>, sample_rate: u32) -> console::Console {
+fn get_console(rom_name: &str, sample_rate: u32) -> console::Console {
     let mut buffer: Vec<u8> = Vec::new();
     let mut file = File::open(rom_name).expect("Couldn't open the ROM file");
     file.read_to_end(&mut buffer)
         .expect("Couldn't read ROM file");
-    console::Console::new(&buffer, tx, sample_rate).unwrap_or_else(|e| match e {
+    console::Console::new(&buffer, sample_rate).unwrap_or_else(|e| match e {
         cart::CartReadingError::UnknownMapper(n) => panic!("Unkown Mapper: {}", n),
         cart::CartReadingError::UnrecognisedFormat => panic!("ROM was in an unrecognised format"),
     })
@@ -46,12 +66,11 @@ fn get_console(rom_name: &str, tx: Sender<f32>, sample_rate: u32) -> console::Co
 pub fn run(rom_name: &str, scale: Scale) {
     let (tx, rx) = channel::<f32>();
     let (sample_rate, _audio) = spawn_audio_loop(rx);
-    let mut console = get_console(rom_name, tx, sample_rate);
+    let mut console = get_console(rom_name, sample_rate);
     let mut opts = WindowOptions::default();
     opts.scale = scale;
-    let mut window =
-        Window::new("Ludus - ESC to exit", 256, 240, opts).expect("Couldn't make window");
-    run_loop(&mut console, &mut window);
+    let window = Window::new("Ludus - ESC to exit", 256, 240, opts).expect("Couldn't make window");
+    run_loop(&mut console, &mut WindowDevice(window), &mut SenderDevice(tx));
 }
 
 fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
@@ -81,28 +100,28 @@ fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
     (sample_rate, child)
 }
 
-fn run_loop(console: &mut console::Console, window: &mut Window) {
+fn run_loop(console: &mut console::Console, window: &mut WindowDevice, sender: &mut SenderDevice) {
     let mut old = Instant::now();
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    while window.0.is_open() && !window.0.is_key_down(Key::Escape) {
         let now = Instant::now();
         let duration = now.duration_since(old);
         old = now;
 
-        if window.is_key_down(Key::Enter) {
+        if window.0.is_key_down(Key::Enter) {
             console.reset();
         }
         let buttons = ButtonState {
-            a: window.is_key_down(Key::K),
-            b: window.is_key_down(Key::J),
-            select: window.is_key_down(Key::G),
-            start: window.is_key_down(Key::H),
-            up: window.is_key_down(Key::W),
-            down: window.is_key_down(Key::S),
-            left: window.is_key_down(Key::A),
-            right: window.is_key_down(Key::D),
+            a: window.0.is_key_down(Key::K),
+            b: window.0.is_key_down(Key::J),
+            select: window.0.is_key_down(Key::G),
+            start: window.0.is_key_down(Key::H),
+            up: window.0.is_key_down(Key::W),
+            down: window.0.is_key_down(Key::S),
+            left: window.0.is_key_down(Key::A),
+            right: window.0.is_key_down(Key::D),
         };
         console.update_controller(buttons);
-        console.step_micros(duration.subsec_micros());
+        console.step_micros(duration.subsec_micros(), sender);
         console.update_window(window);
     }
 }

@@ -3,10 +3,8 @@ use crate::cart::CartReadingError;
 use crate::controller::ButtonState;
 use crate::cpu::CPU;
 use crate::memory::MemoryBus;
-use crate::minifb::Window;
+use crate::ports::{AudioDevice, VideoDevice};
 use crate::ppu::PPU;
-
-use std::sync::mpsc::Sender;
 
 /// Used to act as an owner of everything needed to run a game
 /// Is also responsible for holding ram,
@@ -18,11 +16,7 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn new(
-        rom_buffer: &[u8],
-        tx: Sender<f32>,
-        sample_rate: u32,
-    ) -> Result<Self, CartReadingError> {
+    pub fn new(rom_buffer: &[u8], sample_rate: u32) -> Result<Self, CartReadingError> {
         // Todo, use an actual sample rate
         // Will fail if the cart couldn't be read
         let mem_res = MemoryBus::with_rom(rom_buffer);
@@ -30,39 +24,39 @@ impl Console {
             let ppu = PPU::new(&mut memory);
             let cpu = CPU::new(memory);
             Console {
-                apu: APU::new(tx, sample_rate),
+                apu: APU::new(sample_rate),
                 cpu,
                 ppu,
             }
         })
     }
 
-    pub fn step(&mut self) -> i32 {
+    pub fn step(&mut self, audio: &mut impl AudioDevice) -> i32 {
         let cpucycles = self.cpu.step();
         let m = &mut self.cpu.mem;
         for _ in 0..cpucycles * 3 {
             self.ppu.step(m);
         }
         for _ in 0..cpucycles {
-            self.apu.step(m);
+            self.apu.step(m, audio);
         }
         cpucycles
     }
 
-    pub fn step_micros(&mut self, micros: u32) {
+    pub fn step_micros(&mut self, micros: u32, audio: &mut impl AudioDevice) {
         // This emulates 1.79 cpu cycles per microsecond
         let mut cpu_cycles = ((micros * 179) / 100) as i32;
         while cpu_cycles > 0 {
-            cpu_cycles -= self.step();
+            cpu_cycles -= self.step(audio);
         }
     }
 
-    pub fn step_frame(&mut self) {
-        self.step_micros(1_000_000 / 60);
+    pub fn step_frame(&mut self, audio: &mut impl AudioDevice) {
+        self.step_micros(1_000_000 / 60, audio);
     }
 
-    pub fn update_window(&self, window: &mut Window) {
-        self.ppu.update_window(window);
+    pub fn update_window(&self, video: &mut impl VideoDevice) {
+        self.ppu.update_window(video);
     }
 
     pub fn update_controller(&mut self, buttons: ButtonState) {

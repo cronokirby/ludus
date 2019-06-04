@@ -1,6 +1,6 @@
 use super::memory::{Mapper, MemoryBus};
 
-use super::minifb::Window;
+use crate::ports::VideoDevice;
 
 type VBuffer = [u32; 256 * 240];
 
@@ -459,13 +459,12 @@ impl PPU {
         self.is_front = true;
     }
 
-    pub fn update_window(&self, window: &mut Window) {
+    pub fn update_window(&self, video: &mut impl VideoDevice) {
         if self.is_front {
-            window.update_with_buffer(self.front.as_ref())
+            video.blit_pixels(self.front.as_ref())
         } else {
-            window.update_with_buffer(self.back.as_ref())
+            video.blit_pixels(self.back.as_ref())
         }
-        .expect("Failed to update window");
     }
 
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {

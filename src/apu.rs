@@ -1,7 +1,7 @@
 use super::memory::MemoryBus;
 
 use std::f32::consts::PI;
-use std::sync::mpsc::Sender;
+use crate::ports::AudioDevice;
 
 const LENGTH_TABLE: [u8; 32] = [
     10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14, 12, 16, 24, 18, 48, 20, 96, 22,
@@ -785,8 +785,6 @@ impl APUState {
 
 /// Represents the audio processing unit
 pub struct APU {
-    /// The channel used to send output to
-    channel: Sender<f32>,
     /// The chain of filters used on the output of the generators
     filter: FilterChain,
     // The 2 tables used to find the height of the wave output
@@ -804,13 +802,12 @@ pub struct APU {
 }
 
 impl APU {
-    pub fn new(tx: Sender<f32>, sample_rate: u32) -> Self {
+    pub fn new(sample_rate: u32) -> Self {
         // We need to round up, otherwise we'll slowly add latency to the music
         let sample_cap = (1_790_000 / sample_rate) as u16 + 1;
         let tnd_table = make_tnd_table();
         let pulse_table = make_pulse_table();
         APU {
-            channel: tx,
             filter: FilterChain::new(sample_rate),
             tnd_table,
             pulse_table,
@@ -822,7 +819,7 @@ impl APU {
     }
 
     /// Steps the apu forward by one CPU tick
-    pub fn step(&mut self, m: &mut MemoryBus) {
+    pub fn step(&mut self, m: &mut MemoryBus, audio: &mut impl AudioDevice) {
         // step timer
         self.frame_tick += 1;
         // we can use the first bit of the frame_tick as an even odd flag
@@ -836,14 +833,14 @@ impl APU {
         self.sample_tick += 1;
         if self.sample_tick >= self.sample_cap {
             self.sample_tick = 0;
-            self.send_sample(m);
+            self.send_sample(m, audio);
         }
     }
 
-    fn send_sample(&mut self, m: &mut MemoryBus) {
+    fn send_sample(&mut self, m: &mut MemoryBus, audio: &mut impl AudioDevice) {
         let output = self.output(m);
         let filtered = self.filter.step(output);
-        self.channel.send(filtered).unwrap();
+        audio.push_sample(filtered)
     }
 
     fn output(&mut self, m: &mut MemoryBus) -> f32 {
