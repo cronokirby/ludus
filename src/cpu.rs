@@ -225,7 +225,7 @@ impl CPU {
 
     fn get_flags(&self) -> u8 {
         let mut r = 0;
-        r |= self.c << 0;
+        r |= self.c;
         r |= self.z << 1;
         r |= self.i << 2;
         r |= self.d << 3;
@@ -241,17 +241,17 @@ impl CPU {
     }
 
     fn read16(&mut self, address: u16) -> u16 {
-        let lo = self.read(address) as u16;
-        let hi = self.read(address + 1) as u16;
-        (hi << 8) | lo
+        let lo = self.read(address);
+        let hi = self.read(address + 1);
+        u16::from_be_bytes([hi, lo])
     }
 
     /// Emulates a software bug where only the lower bit wraps around
     fn read16bug(&mut self, a: u16) -> u16 {
         let b = (a & 0xFF00) | ((a + 1) & 0xFF);
-        let lo = self.read(a) as u16;
-        let hi = self.read(b) as u16;
-        (hi << 8) | lo
+        let lo = self.read(a);
+        let hi = self.read(b);
+        u16::from_be_bytes([hi, lo])
     }
 
     fn write(&mut self, address: u16, value: u8) {
@@ -259,7 +259,7 @@ impl CPU {
     }
 
     fn push(&mut self, value: u8) {
-        let sp = self.sp as u16;
+        let sp = u16::from(self.sp);
         self.write(0x100 | sp, value);
         self.sp = self.sp.wrapping_sub(1);
     }
@@ -273,14 +273,14 @@ impl CPU {
 
     fn pull(&mut self) -> u8 {
         self.sp = self.sp.wrapping_add(1);
-        let sp = self.sp as u16;
+        let sp = u16::from(self.sp);
         self.read(0x100 | sp)
     }
 
     fn pull16(&mut self) -> u16 {
-        let lo = self.pull() as u16;
-        let hi = self.pull() as u16;
-        (hi << 8) | lo
+        let lo = self.pull();
+        let hi = self.pull();
+        u16::from_be_bytes([hi, lo])
     }
 
     fn set_z(&mut self, r: u8) {
@@ -376,14 +376,14 @@ impl CPU {
             Addressing::AbsoluteX => {
                 let pc = self.pc.wrapping_add(1);
                 let read = self.read16(pc);
-                let address = read.wrapping_add(self.x as u16);
+                let address = read.wrapping_add(u16::from(self.x));
                 page_crossed = pages_differ(read, address);
                 address
             }
             Addressing::AbsoluteY => {
                 let pc = self.pc.wrapping_add(1);
                 let read = self.read16(pc);
-                let address = read.wrapping_add(self.y as u16);
+                let address = read.wrapping_add(u16::from(self.y));
                 page_crossed = pages_differ(read, address);
                 address
             }
@@ -393,7 +393,7 @@ impl CPU {
             Addressing::IndexedIndirect => {
                 let next = self.pc.wrapping_add(1);
                 let added = self.read(next).wrapping_add(self.x);
-                self.read16bug(added as u16)
+                self.read16bug(u16::from(added))
             }
             Addressing::Indirect => {
                 let next = self.pc.wrapping_add(1);
@@ -402,15 +402,15 @@ impl CPU {
             }
             Addressing::IndirectIndexed => {
                 let pc = self.pc.wrapping_add(1);
-                let next = self.read(pc) as u16;
+                let next = u16::from(self.read(pc));
                 let read = self.read16bug(next);
-                let address = read.wrapping_add(self.y as u16);
+                let address = read.wrapping_add(u16::from(self.y));
                 page_crossed = pages_differ(address, read);
                 address
             }
             Addressing::Relative => {
                 let pc = self.pc.wrapping_add(1);
-                let offset = self.read(pc) as u16;
+                let offset = u16::from(self.read(pc));
                 // treating this as a signed integer
                 let nxt = self.pc.wrapping_add(2).wrapping_add(offset);
                 if offset < 0x80 {
@@ -421,18 +421,18 @@ impl CPU {
             }
             Addressing::ZeroPage => {
                 let next = self.pc.wrapping_add(1);
-                self.read(next) as u16
+                u16::from(self.read(next))
             }
             Addressing::ZeroPageX => {
                 let next = self.pc.wrapping_add(1);
                 let added = self.read(next).wrapping_add(self.x);
                 // we don't need to & 0xFF here, since added is a byte
-                added as u16
+                u16::from(added)
             }
             Addressing::ZeroPageY => {
                 let next = self.pc.wrapping_add(1);
                 let added = self.read(next).wrapping_add(self.y);
-                added as u16
+                u16::from(added)
             }
         };
 
@@ -451,7 +451,7 @@ impl CPU {
                 let a2 = a.wrapping_add(b).wrapping_add(c);
                 self.a = a2;
                 self.set_zn(a2);
-                if (a as i32) + (b as i32) + (c as i32) > 0xFF {
+                if u32::from(a) + u32::from(b) + u32::from(c) > 0xFF {
                     self.c = 1;
                 } else {
                     self.c = 0;
@@ -752,7 +752,7 @@ impl CPU {
                 let a2 = a.wrapping_sub(b).wrapping_sub(1 - c);
                 self.a = a2;
                 self.set_zn(a2);
-                if (a as i32) - (b as i32) - ((1 - c) as i32) >= 0 {
+                if i32::from(a) - i32::from(b) - (1 - i32::from(c)) >= 0 {
                     self.c = 1;
                 } else {
                     self.c = 0;

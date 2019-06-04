@@ -111,7 +111,7 @@ impl MemoryBus {
     }
 
     fn write_dma(&mut self, value: u8) {
-        let mut address = (value as u16) << 8;
+        let mut address = u16::from(value) << 8;
         // Stall for DMA
         self.cpu.add_stall(513);
         for _ in 0..256 {

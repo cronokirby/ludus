@@ -54,7 +54,7 @@ impl Mapper for Mapper2 {
         match address {
             a if a < 0x2000 => self.cart.chr[a as usize] = value,
             a if a >= 0x8000 => {
-                let bank = (value as i32) % self.prg_banks;
+                let bank = i32::from(value) % self.prg_banks;
                 self.prgbank1 = bank as usize;
             }
             a if a >= 0x6000 => {
