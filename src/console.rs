@@ -53,7 +53,7 @@ impl Console {
         // This emulates 1.79 cpu cycles per microsecond
         let mut cpu_cycles = ((micros * 179) / 100) as i32;
         while cpu_cycles > 0 {
-            cpu_cycles = cpu_cycles - self.step();
+            cpu_cycles -= self.step();
         }
     }
 
