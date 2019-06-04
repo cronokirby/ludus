@@ -31,8 +31,8 @@ const DMC_TABLE: [u8; 16] = [
 /// Constructs a new tnd table
 fn make_pulse_table() -> [f32; 31] {
     let mut arr = [0.0; 31];
-    for i in 0..31 {
-        arr[i] = 95.52 / (8128.0 / (i as f32) + 100.0);
+    for (i, item) in arr.iter_mut().enumerate() {
+        *item = 95.52 / (8128.0 / (i as f32) + 100.0);
     }
     arr
 }
@@ -40,8 +40,8 @@ fn make_pulse_table() -> [f32; 31] {
 /// Constructs a new pulse table
 fn make_tnd_table() -> [f32; 203] {
     let mut arr = [0.0; 203];
-    for i in 0..203 {
-        arr[i] = 163.37 / (24329.0 / (i as f32) + 100.0);
+    for (i, item) in arr.iter_mut().enumerate() {
+        *item = 163.37 / (24329.0 / (i as f32) + 100.0);
     }
     arr
 }
