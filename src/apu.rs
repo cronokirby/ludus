@@ -763,7 +763,7 @@ impl APUState {
     }
 
     fn write_frame_counter(&mut self, value: u8) {
-        self.frame_period = 4 + (value >> 7) & 1;
+        self.frame_period = 4 + ((value >> 7) & 1);
         self.frame_irq = (value >> 6) & 1 == 0;
         // Catching up with the frame period
         if self.frame_period == 5 {
