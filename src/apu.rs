@@ -567,7 +567,7 @@ impl DMC {
 
     fn write_control(&mut self, value: u8) {
         self.irq = value & 0x80 == 0x80;
-        self.do_loop = value & 040 == 0x40;
+        self.do_loop = value & 0x40 == 0x40;
         self.tick_period = DMC_TABLE[(value & 0xF) as usize];
     }
 
