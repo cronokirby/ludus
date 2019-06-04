@@ -210,12 +210,12 @@ impl Square {
     }
 
     fn write_low_timer(&mut self, value: u8) {
-        self.timer_period = (self.timer_period & 0xFF00) | (value as u16);
+        self.timer_period = (self.timer_period & 0xFF00) | u16::from(value);
     }
 
     fn write_high_timer(&mut self, value: u8) {
         self.length_value = LENGTH_TABLE[(value >> 3) as usize];
-        let shifted = ((value & 7) as u16) << 8;
+        let shifted = u16::from(value & 7) << 8;
         self.timer_period = (self.timer_period & 0xFF) | shifted;
         self.envelope_start = true;
         self.duty_value = 0;
@@ -346,13 +346,13 @@ impl Triangle {
     }
 
     fn write_low_timer(&mut self, value: u8) {
-        let low = value as u16;
+        let low = u16::from(value);
         self.timer_period = (self.timer_period & 0xFF00) | low;
     }
 
     fn write_high_timer(&mut self, value: u8) {
         self.length_value = LENGTH_TABLE[(value >> 3) as usize];
-        let high = ((value & 7) as u16) << 8;
+        let high = u16::from(value & 7) << 8;
         self.timer_period = (self.timer_period & 0xFF) | high;
         self.timer_value = self.timer_period;
         self.counter_reload = true;
@@ -576,11 +576,11 @@ impl DMC {
     }
 
     fn write_address(&mut self, value: u8) {
-        self.sample_address = 0xC000 | ((value as u16) << 6);
+        self.sample_address = 0xC000 | (u16::from(value) << 6);
     }
 
     fn write_length(&mut self, value: u8) {
-        self.sample_length = ((value as u16) << 4) | 1;
+        self.sample_length = (u16::from(value) << 4) | 1;
     }
 
     fn restart(&mut self) {
@@ -661,8 +661,8 @@ pub struct APUState {
     frame_irq: bool,
 }
 
-impl APUState {
-    pub fn new() -> Self {
+impl Default for APUState {
+    fn default() -> Self {
         APUState {
             square1: Square::new(true),
             square2: Square::new(false),
@@ -672,6 +672,12 @@ impl APUState {
             frame_period: 0,
             frame_irq: false,
         }
+    }
+}
+
+impl APUState {
+    pub fn new() -> Self {
+        APUState::default()
     }
 
     pub fn read_register(&self, address: u16) -> u8 {
