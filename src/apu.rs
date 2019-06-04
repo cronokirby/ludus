@@ -628,10 +628,8 @@ impl DMC {
                 if self.value <= 125 {
                     self.value += 2;
                 }
-            } else {
-                if self.value >= 2 {
-                    self.value -= 2;
-                }
+            } else if self.value >= 2 {
+                self.value -= 2;
             }
             self.shift_register >>= 1;
             self.bit_count -= 1;
