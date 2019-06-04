@@ -1,0 +1,4 @@
+[package]
+name = "ludus"
+version = "0.1.0"
+authors = ["Lúcás Meier <cronokirby@gmail.com>"]

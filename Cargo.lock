@@ -236,9 +236,14 @@ dependencies = [
 [[package]]
 name = "ludus"
 version = "0.1.0"
+
+[[package]]
+name = "ludus-emu"
+version = "0.1.0"
 dependencies = [
  "argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cpal 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ludus 0.1.0",
  "minifb 0.10.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

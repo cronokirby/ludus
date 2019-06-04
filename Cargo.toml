@@ -1,9 +1,12 @@
 [package]
-name = "ludus"
+name = "ludus-emu"
 version = "0.1.0"
 authors = ["Lúcás Meier <cronokirby@gmail.com>"]
+
+[workspace]
 
 [dependencies]
 argparse = "0.2.2"
 cpal = "0.8.2"
+ludus = { path = "ludus" }
 minifb = "0.10"
