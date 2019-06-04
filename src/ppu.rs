@@ -272,7 +272,7 @@ impl PPUState {
         if self.flg_increment == 0 {
             self.v += 1;
         } else {
-            self.v += 1;
+            self.v += 32;
         }
         value
     }
