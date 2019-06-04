@@ -72,9 +72,9 @@ impl MemoryBus {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize],
             a if a < 0x4000 => {
                 let adr = 0x2000 + a % 8;
-                self.ppu.read_register(&self.mapper, adr)
+                self.ppu.read_register(&*self.mapper, adr)
             }
-            0x4014 => self.ppu.read_register(&self.mapper, 0x4014),
+            0x4014 => self.ppu.read_register(&*self.mapper, 0x4014),
             0x4015 => self.apu.read_register(address),
             0x4016 => self.controller1.read(),
             0x4017 => self.controller2.read(),
@@ -90,11 +90,11 @@ impl MemoryBus {
             a if a < 0x2000 => self.ram[(a % 0x800) as usize] = value,
             a if a < 0x4000 => {
                 let adr = 0x2000 + a % 8;
-                self.ppu.write_register(&mut self.mapper, adr, value);
+                self.ppu.write_register(&mut *self.mapper, adr, value);
             }
             a if a < 0x4014 => self.apu.write_register(a, value),
             0x4014 => {
-                self.ppu.write_register(&mut self.mapper, 0x4014, value);
+                self.ppu.write_register(&mut *self.mapper, 0x4014, value);
                 self.write_dma(value);
             }
             0x4015 => self.apu.write_register(address, value),

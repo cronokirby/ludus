@@ -179,7 +179,7 @@ impl PPUState {
         self.nmi_previous = nmi;
     }
 
-    fn read(&self, mapper: &Box<Mapper>, address: u16) -> u8 {
+    fn read(&self, mapper: &dyn Mapper, address: u16) -> u8 {
         let wrapped = address % 0x4000;
         match wrapped {
             a if a < 0x2000 => mapper.read(a),
@@ -195,7 +195,7 @@ impl PPUState {
         }
     }
 
-    fn write(&mut self, mapper: &mut Box<Mapper>, address: u16, value: u8) {
+    fn write(&mut self, mapper: &mut dyn Mapper, address: u16, value: u8) {
         let wrapped = address % 0x4000;
         match wrapped {
             a if a < 0x2000 => mapper.write(a, value),
@@ -232,7 +232,7 @@ impl PPUState {
     }
 
     /// Needs the wrapper because it might read from CHR data
-    pub fn read_register(&mut self, m: &Box<Mapper>, address: u16) -> u8 {
+    pub fn read_register(&mut self, m: &dyn Mapper, address: u16) -> u8 {
         match address {
             0x2002 => self.read_status(),
             0x2004 => self.read_oam_data(),
@@ -258,7 +258,7 @@ impl PPUState {
         self.oam[self.oam_address as usize]
     }
 
-    fn read_data(&mut self, mapper: &Box<Mapper>) -> u8 {
+    fn read_data(&mut self, mapper: &dyn Mapper) -> u8 {
         let v = self.v;
         let mut value = self.read(mapper, v);
         if v % 0x4000 < 0x3F00 {
@@ -266,7 +266,7 @@ impl PPUState {
             self.buffer_data = value;
             value = buffer;
         } else {
-            let read = self.read(&mapper, v - 0x1000);
+            let read = self.read(mapper, v - 0x1000);
             self.buffer_data = read;
         }
         if self.flg_increment == 0 {
@@ -277,7 +277,7 @@ impl PPUState {
         value
     }
 
-    pub fn write_register(&mut self, mapper: &mut Box<Mapper>, address: u16, value: u8) {
+    pub fn write_register(&mut self, mapper: &mut dyn Mapper, address: u16, value: u8) {
         self.register = value;
         match address {
             0x2000 => self.write_control(value),
@@ -349,7 +349,7 @@ impl PPUState {
         }
     }
 
-    fn write_data(&mut self, mapper: &mut Box<Mapper>, value: u8) {
+    fn write_data(&mut self, mapper: &mut Mapper, value: u8) {
         let v = self.v;
         self.write(mapper, v, value);
         if self.flg_increment == 0 {
@@ -477,14 +477,14 @@ impl PPU {
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
         let v = m.ppu.v;
         let address = 0x2000 | (v & 0x0FFF);
-        self.nametable_byte = m.ppu.read(&m.mapper, address);
+        self.nametable_byte = m.ppu.read(&*m.mapper, address);
     }
 
     fn fetch_attributetable_byte(&mut self, m: &mut MemoryBus) {
         let v = m.ppu.v;
         let address = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
         let shift = ((v >> 4) & 4) | (v & 2);
-        let read = m.ppu.read(&m.mapper, address);
+        let read = m.ppu.read(&*m.mapper, address);
         self.attributetable_byte = ((read >> shift) & 3) << 2;
     }
 
@@ -493,7 +493,7 @@ impl PPU {
         let table = m.ppu.flg_backgroundtable;
         let tile = u16::from(self.nametable_byte);
         let address = 0x1000 * u16::from(table) + tile * 16 + fine_y;
-        self.lowtile_byte = m.ppu.read(&m.mapper, address);
+        self.lowtile_byte = m.ppu.read(&*m.mapper, address);
     }
 
     fn fetch_hightile_byte(&mut self, m: &mut MemoryBus) {
@@ -501,7 +501,7 @@ impl PPU {
         let table = m.ppu.flg_backgroundtable;
         let tile = u16::from(self.nametable_byte);
         let address = 0x1000 * u16::from(table) + tile * 16 + fine_y;
-        self.hightile_byte = m.ppu.read(&m.mapper, address + 8);
+        self.hightile_byte = m.ppu.read(&*m.mapper, address + 8);
     }
 
     fn store_tiledata(&mut self) {
@@ -540,8 +540,8 @@ impl PPU {
             0x1000 * u16::from(table) + u16::from(tile) * 16 + (row as u16)
         };
         let a = (attributes & 3) << 2;
-        let mut lowtile_byte = m.ppu.read(&m.mapper, address);
-        let mut hightile_byte = m.ppu.read(&m.mapper, address + 8);
+        let mut lowtile_byte = m.ppu.read(&*m.mapper, address);
+        let mut hightile_byte = m.ppu.read(&*m.mapper, address + 8);
         let mut data: u32 = 0;
         for _ in 0..8 {
             let (p1, p2) = if attributes & 0x40 == 0x40 {
