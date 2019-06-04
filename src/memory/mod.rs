@@ -116,7 +116,7 @@ impl MemoryBus {
         self.cpu.add_stall(513);
         for _ in 0..256 {
             let oam_address = self.ppu.oam_address as usize;
-            self.ppu.oam[oam_address] = self.cpu_read(address);
+            self.ppu.oam.0[oam_address] = self.cpu_read(address);
             self.ppu.oam_address = self.ppu.oam_address.wrapping_add(1);
             address += 1;
         }

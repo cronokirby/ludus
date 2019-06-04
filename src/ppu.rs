@@ -71,12 +71,39 @@ const PALETTE: [u32; 64] = [
     0xFF00_0000,
 ];
 
+struct NameTables([u8; 2048]);
+
+impl Default for NameTables {
+    fn default() -> Self {
+        NameTables([0; 2048])
+    }
+}
+
+impl NameTables {
+    fn read(&self, addr: u16) -> u8 {
+        self.0[(addr % 2048) as usize]
+    }
+
+    fn write(&mut self, addr: u16, val: u8) {
+        self.0[(addr % 2048) as usize] = val;
+    }
+}
+
+pub struct OAM(pub [u8; 256]);
+
+impl Default for OAM {
+    fn default() -> Self {
+        OAM([0; 256])
+    }
+}
+
 /// Represents openly modifiable PPU state
+#[derive(Default)]
 pub struct PPUState {
     // Memory
     palettes: [u8; 32],
-    nametables: [u8; 2048],
-    pub oam: [u8; 256], // public to allow cpu DMA transfer
+    nametables: NameTables,
+    pub oam: OAM, // public to allow cpu DMA transfer
     /// Current vram address (15 bit)
     pub v: u16, // Public for access during CPU IO reading
     /// Temporary vram address (15 bit)
@@ -137,38 +164,7 @@ pub struct PPUState {
 
 impl PPUState {
     pub fn new() -> Self {
-        PPUState {
-            palettes: [0; 32],
-            nametables: [0; 2048],
-            oam: [0; 256],
-            v: 0,
-            t: 0,
-            w: 0,
-            x: 0,
-            register: 0,
-            nmi_occurred: false,
-            nmi_output: false,
-            nmi_previous: false,
-            nmi_delay: 0,
-            flg_nametable: 0,
-            flg_increment: 0,
-            flg_spritetable: 0,
-            flg_backgroundtable: 0,
-            flg_spritesize: 0,
-            flg_masterslave: 0,
-            flg_grayscale: 0,
-            flg_showleftbg: 0,
-            flg_showleftsprites: 0,
-            flg_showbg: 0,
-            flg_showsprites: 0,
-            flg_redtint: 0,
-            flg_greentint: 0,
-            flg_bluetint: 0,
-            flg_sprite0hit: 0,
-            flg_spriteoverflow: 0,
-            oam_address: 0,
-            buffer_data: 0,
-        }
+        PPUState::default()
     }
 
     fn nmi_change(&mut self) {
@@ -186,7 +182,7 @@ impl PPUState {
             a if a < 0x3F00 => {
                 let mode = mapper.mirroring_mode();
                 let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 2048) as usize]
+                self.nametables.read(mirrored)
             }
             a if a < 0x4000 => self.read_palette(a % 32),
             a => {
@@ -202,7 +198,7 @@ impl PPUState {
             a if a < 0x3F00 => {
                 let mode = mapper.mirroring_mode();
                 let mirrored = mode.mirror_address(a);
-                self.nametables[(mirrored % 2048) as usize] = value;
+                self.nametables.write(mirrored, value);
             }
             a if a < 0x4000 => {
                 self.write_palette(a % 32, value);
@@ -255,7 +251,7 @@ impl PPUState {
     }
 
     fn read_oam_data(&self) -> u8 {
-        self.oam[self.oam_address as usize]
+        self.oam.0[self.oam_address as usize]
     }
 
     fn read_data(&mut self, mapper: &dyn Mapper) -> u8 {
@@ -320,7 +316,7 @@ impl PPUState {
 
     fn write_oam_data(&mut self, value: u8) {
         let a = self.oam_address as usize;
-        self.oam[a] = value;
+        self.oam.0[a] = value;
         self.oam_address = self.oam_address.wrapping_add(1);
     }
 
@@ -517,8 +513,8 @@ impl PPU {
     }
 
     fn fetch_sprite_pattern(&self, m: &mut MemoryBus, i: usize, mut row: i32) -> u32 {
-        let mut tile = m.ppu.oam[i * 4 + 1];
-        let attributes = m.ppu.oam[i * 4 + 2];
+        let mut tile = m.ppu.oam.0[i * 4 + 1];
+        let attributes = m.ppu.oam.0[i * 4 + 2];
         let address = if m.ppu.flg_spritesize == 0 {
             if attributes & 0x80 == 0x80 {
                 row = 7 - row;
@@ -565,9 +561,9 @@ impl PPU {
         let h: i32 = if m.ppu.flg_spritesize == 0 { 8 } else { 16 };
         let mut count = 0;
         for i in 0..64 {
-            let y = m.ppu.oam[i * 4];
-            let a = m.ppu.oam[i * 4 + 2];
-            let x = m.ppu.oam[i * 4 + 3];
+            let y = m.ppu.oam.0[i * 4];
+            let a = m.ppu.oam.0[i * 4 + 2];
+            let x = m.ppu.oam.0[i * 4 + 3];
             let row = self.scanline - i32::from(y);
             if row < 0 || row >= h {
                 continue;
