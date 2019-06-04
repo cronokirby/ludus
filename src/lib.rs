@@ -12,8 +12,8 @@ pub mod ppu;
 #[cfg(test)]
 mod tests;
 
+use self::controller::ButtonState;
 use self::minifb::{Key, Scale, Window, WindowOptions};
-
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -92,17 +92,17 @@ fn run_loop(console: &mut console::Console, window: &mut Window) {
         if window.is_key_down(Key::Enter) {
             console.reset();
         }
-
-        console.update_controller(
-            window.is_key_down(Key::K),
-            window.is_key_down(Key::J),
-            window.is_key_down(Key::G),
-            window.is_key_down(Key::H),
-            window.is_key_down(Key::W),
-            window.is_key_down(Key::S),
-            window.is_key_down(Key::A),
-            window.is_key_down(Key::D),
-        );
+        let buttons = ButtonState {
+            a: window.is_key_down(Key::K),
+            b: window.is_key_down(Key::J),
+            select: window.is_key_down(Key::G),
+            start: window.is_key_down(Key::H),
+            up: window.is_key_down(Key::W),
+            down: window.is_key_down(Key::S),
+            left: window.is_key_down(Key::A),
+            right: window.is_key_down(Key::D),
+        };
+        console.update_controller(buttons);
         console.step_micros(duration.subsec_micros());
         console.update_window(window);
     }

@@ -1,10 +1,10 @@
-use super::apu::APU;
-use super::cart::CartReadingError;
-use super::cpu::CPU;
-use super::memory::MemoryBus;
-use super::ppu::PPU;
-
-use super::minifb::Window;
+use crate::apu::APU;
+use crate::cart::CartReadingError;
+use crate::controller::ButtonState;
+use crate::cpu::CPU;
+use crate::memory::MemoryBus;
+use crate::minifb::Window;
+use crate::ppu::PPU;
 
 use std::sync::mpsc::Sender;
 
@@ -65,19 +65,8 @@ impl Console {
         self.ppu.update_window(window);
     }
 
-    pub fn update_controller(
-        &mut self,
-        a: bool,
-        b: bool,
-        select: bool,
-        start: bool,
-        up: bool,
-        down: bool,
-        left: bool,
-        right: bool,
-    ) {
-        self.cpu
-            .set_buttons([a, b, select, start, up, down, left, right]);
+    pub fn update_controller(&mut self, buttons: ButtonState) {
+        self.cpu.set_buttons(buttons);
     }
 
     /// Resets everything to it's initial state

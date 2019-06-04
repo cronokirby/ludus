@@ -1,3 +1,15 @@
+#[derive(Default)]
+pub struct ButtonState {
+    pub a: bool,
+    pub b: bool,
+    pub select: bool,
+    pub start: bool,
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
 /// Represents a controller
 #[derive(Default)]
 pub struct Controller {
@@ -14,8 +26,17 @@ impl Controller {
         Controller::default()
     }
 
-    pub fn set_buttons(&mut self, buttons: [bool; 8]) {
-        self.buttons = buttons;
+    pub fn set_buttons(&mut self, buttons: ButtonState) {
+        self.buttons = [
+            buttons.a,
+            buttons.b,
+            buttons.select,
+            buttons.start,
+            buttons.up,
+            buttons.down,
+            buttons.left,
+            buttons.right,
+        ];
     }
 
     pub fn read(&mut self) -> u8 {

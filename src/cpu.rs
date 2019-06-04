@@ -1,4 +1,5 @@
 use super::memory::MemoryBus;
+use crate::controller::ButtonState;
 
 // The various addressing modes of each opcode
 const OP_MODES: [u8; 256] = [
@@ -206,7 +207,7 @@ impl CPU {
     }
 
     /// Sets the buttons for controller 1
-    pub fn set_buttons(&mut self, buttons: [bool; 8]) {
+    pub fn set_buttons(&mut self, buttons: ButtonState) {
         self.mem.controller1.set_buttons(buttons);
     }
 
