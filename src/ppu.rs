@@ -262,9 +262,7 @@ impl PPUState {
         let v = self.v;
         let mut value = self.read(mapper, v);
         if v % 0x4000 < 0x3F00 {
-            let buffer = self.buffer_data;
-            self.buffer_data = value;
-            value = buffer;
+            std::mem::swap(&mut self.buffer_data, &mut value);
         } else {
             let read = self.read(mapper, v - 0x1000);
             self.buffer_data = read;
