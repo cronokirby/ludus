@@ -1,40 +1,38 @@
 /// Represents the possible errors when decoding a Cart
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum CartReadingError {
     UnrecognisedFormat,
     UnknownMapper(u8),
 }
 
 /// Represents the type of mirroring present on a cartridge
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Mirroring {
     Horizontal,
     Vertical,
 }
 
-impl Mirroring {
-    /// Create a mirroring from a boolean, representing whether or not
-    /// the mirroring is vertical.
-    pub fn from_bool(b: bool) -> Self {
-        if b {
+impl From<bool> for Mirroring {
+    /// Create a mirroring from a boolean, with true representing vertical
+    fn from(is_vertical: bool) -> Self {
+        if is_vertical {
             Mirroring::Vertical
         } else {
             Mirroring::Horizontal
         }
     }
+}
 
+impl Mirroring {
     /// Returns true if mirroring is Vertical
     pub fn is_vertical(&self) -> bool {
-        match self {
-            Mirroring::Horizontal => false,
-            Mirroring::Vertical => true,
-        }
+        *self == Mirroring::Vertical
     }
 
     /// Mirrors an address >= 0x2000
-    pub fn mirror_address(&self, address: u16) -> u16 {
+    pub(crate) fn mirror_address(&self, address: u16) -> u16 {
         let address = (address - 0x2000) % 0x1000;
-        let table = match (self, address / 0x0400) {
+        let table = match (self, address / 0x400) {
             (Mirroring::Horizontal, 0) => 0,
             (Mirroring::Horizontal, 1) => 0,
             (Mirroring::Horizontal, 2) => 1,
@@ -45,7 +43,7 @@ impl Mirroring {
             (Mirroring::Vertical, 3) => 1,
             _ => 0,
         };
-        0x2000 + table * 0x0400 + (address % 0x0400)
+        0x2000 + table * 0x400 + (address % 0x400)
     }
 }
 
@@ -94,7 +92,7 @@ impl Cart {
             chr: buffer[prg_end..chr_end].to_vec(),
             sram: [0; 0x2000],
             mapper: (flag6 >> 4) | (flag7 & 0xF0),
-            mirroring: Mirroring::from_bool(flag6 & 0b1 > 0),
+            mirroring: Mirroring::from(flag6 & 1 != 0),
             has_battery: flag6 & 0b10 > 0,
         }
     }
