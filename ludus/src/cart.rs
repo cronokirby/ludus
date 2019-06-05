@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 /// Represents the possible errors when decoding a Cart
 #[derive(Clone, Copy, Debug)]
 pub enum CartReadingError {
@@ -47,6 +49,28 @@ impl Mirroring {
     }
 }
 
+/// This represents the different type of mappers this crate supports.
+///
+/// In theory, the mapper id in a cart could be any byte, but only a small subset
+/// of mappers were actually used.
+#[derive(Clone, Copy, Debug)]
+pub enum MapperID {
+    /// The mapper used for 0x0 and 0x2
+    M2,
+}
+
+impl TryFrom<u8> for MapperID {
+    type Error = CartReadingError;
+
+    fn try_from(byte: u8) -> Result<Self, Self::Error> {
+        match byte {
+            0 => Ok(MapperID::M2),
+            2 => Ok(MapperID::M2),
+            _ => Err(CartReadingError::UnknownMapper(byte)),
+        }
+    }
+}
+
 /// Represents an NES Cartridge
 /// The PRG and CHR roms vary in sizes between carts,
 /// which is why they're stored in Vecs.
@@ -58,7 +82,7 @@ pub struct Cart {
     /// The SRAM, always 8KB
     pub sram: [u8; 0x2000],
     /// The ID of the Mapper this cart uses
-    pub mapper: u8,
+    pub mapper: MapperID,
     /// What type of mirroring is used in this cart
     pub mirroring: Mirroring,
     /// Indicates whether or not a battery backed RAM is present
@@ -70,14 +94,14 @@ impl Cart {
     /// detecting and parsing the format automatically.
     pub fn from_bytes(buffer: &[u8]) -> Result<Cart, CartReadingError> {
         if buffer[0..4] == [0x4E, 0x45, 0x53, 0x1A] {
-            Ok(Cart::from_ines(buffer))
+            Cart::from_ines(buffer)
         } else {
             Err(CartReadingError::UnrecognisedFormat)
         }
     }
 
     /// Reads an INES formatted buffer, including the header
-    fn from_ines(buffer: &[u8]) -> Cart {
+    fn from_ines(buffer: &[u8]) -> Result<Cart, CartReadingError> {
         let prg_chunks = buffer[4] as usize;
         let chr_chunks = buffer[5] as usize;
         let flag6 = buffer[6];
@@ -86,14 +110,14 @@ impl Cart {
         let prg_start = 16 + trainer_offset;
         let prg_end = prg_start + 0x4000 * prg_chunks;
         let chr_end = prg_end + 0x2000 * chr_chunks;
-        // todo, check length here
-        Cart {
+        let mapper = MapperID::try_from((flag6 >> 4) | (flag7 & 0xF0))?;
+        Ok(Cart {
             prg: buffer[prg_start..prg_end].to_vec(),
             chr: buffer[prg_end..chr_end].to_vec(),
+            mapper,
             sram: [0; 0x2000],
-            mapper: (flag6 >> 4) | (flag7 & 0xF0),
             mirroring: Mirroring::from(flag6 & 1 != 0),
             has_battery: flag6 & 0b10 > 0,
-        }
+        })
     }
 }

@@ -9,8 +9,8 @@ extern crate minifb;
 use ludus::controller::ButtonState;
 use minifb::{Key, Scale, Window, WindowOptions};
 
-use ludus::cart;
-use ludus::console;
+use ludus::cart::Cart;
+use ludus::console::Console;
 use ludus::ports;
 use std::fs::File;
 use std::io::Read;
@@ -47,15 +47,13 @@ fn get_scale(s: &str) -> Scale {
     }
 }
 
-fn get_console(rom_name: &str, sample_rate: u32) -> console::Console {
+fn get_console(rom_name: &str, sample_rate: u32) -> Console {
     let mut buffer: Vec<u8> = Vec::new();
     let mut file = File::open(rom_name).expect("Couldn't open the ROM file");
     file.read_to_end(&mut buffer)
         .expect("Couldn't read ROM file");
-    console::Console::new(&buffer, sample_rate).unwrap_or_else(|e| match e {
-        cart::CartReadingError::UnknownMapper(n) => panic!("Unkown Mapper: {}", n),
-        cart::CartReadingError::UnrecognisedFormat => panic!("ROM was in an unrecognised format"),
-    })
+    let cart = Cart::from_bytes(&buffer).expect("Failed to decode ROM");
+    Console::new(cart, sample_rate)
 }
 
 /// Runs a rom file with GUI and all
@@ -100,7 +98,7 @@ fn spawn_audio_loop(rx: Receiver<f32>) -> (u32, thread::JoinHandle<()>) {
     (sample_rate, child)
 }
 
-fn run_loop(console: &mut console::Console, window: &mut WindowDevice, sender: &mut SenderDevice) {
+fn run_loop(console: &mut Console, window: &mut WindowDevice, sender: &mut SenderDevice) {
     let mut old = Instant::now();
     while window.0.is_open() && !window.0.is_key_down(Key::Escape) {
         let now = Instant::now();

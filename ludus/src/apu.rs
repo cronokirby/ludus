@@ -784,7 +784,7 @@ impl APUState {
 }
 
 /// Represents the audio processing unit
-pub struct APU {
+pub(crate) struct APU {
     /// The chain of filters used on the output of the generators
     filter: FilterChain,
     // The 2 tables used to find the height of the wave output

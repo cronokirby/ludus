@@ -389,7 +389,7 @@ impl PPUState {
 }
 
 /// Represents the PPU
-pub struct PPU {
+pub(crate) struct PPU {
     cycle: i32,
     scanline: i32,
 

@@ -1,5 +1,5 @@
 use crate::apu::APU;
-use crate::cart::CartReadingError;
+use crate::cart::Cart;
 use crate::controller::ButtonState;
 use crate::cpu::CPU;
 use crate::memory::MemoryBus;
@@ -16,19 +16,15 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn new(rom_buffer: &[u8], sample_rate: u32) -> Result<Self, CartReadingError> {
-        // Todo, use an actual sample rate
-        // Will fail if the cart couldn't be read
-        let mem_res = MemoryBus::with_rom(rom_buffer);
-        mem_res.map(|mut memory| {
-            let ppu = PPU::new(&mut memory);
-            let cpu = CPU::new(memory);
-            Console {
-                apu: APU::new(sample_rate),
-                cpu,
-                ppu,
-            }
-        })
+    pub fn new(cart: Cart, sample_rate: u32) -> Self {
+        let mut memory = MemoryBus::with_cart(cart);
+        let ppu = PPU::new(&mut memory);
+        let cpu = CPU::new(memory);
+        Console {
+            apu: APU::new(sample_rate),
+            cpu,
+            ppu,
+        }
     }
 
     pub fn step<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) -> i32

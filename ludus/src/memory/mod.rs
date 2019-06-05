@@ -1,7 +1,7 @@
 mod mapper2;
 
 use super::apu::APUState;
-use super::cart::{Cart, CartReadingError, Mirroring};
+use super::cart::{Cart, MapperID, Mirroring};
 use super::controller::Controller;
 use super::cpu::CPUState;
 use super::ppu::PPUState;
@@ -16,17 +16,15 @@ pub trait Mapper {
 impl Mapper {
     /// Dynamically assigns the correct mapper based on the cart.
     /// Returns an error if the mapper is unkown
-    pub fn with_cart(cart: Cart) -> Result<Box<Mapper>, CartReadingError> {
+    pub fn with_cart(cart: Cart) -> Box<Mapper> {
         match cart.mapper {
-            0 => Ok(Box::new(mapper2::Mapper2::new(cart))),
-            2 => Ok(Box::new(mapper2::Mapper2::new(cart))),
-            m => Err(CartReadingError::UnknownMapper(m)),
+            MapperID::M2 => Box::new(mapper2::Mapper2::new(cart)),
         }
     }
 }
 
 /// Holds cart memory
-pub struct MemoryBus {
+pub(crate) struct MemoryBus {
     // Contains the mapper logic for interfacing with the cart
     // Each mapper has a different structure depending on what it
     // might need to keep track of, so we need to use dynamic dispatch.
@@ -41,28 +39,25 @@ pub struct MemoryBus {
 }
 
 impl MemoryBus {
-    /// Creates a memory bus from a Cartridge buffer.
-    /// Returns an error if the mapper is unkown or the cart fails to read
-    /// The apu needs to be passed explicitly, because the mem bus doesn't
-    /// know things like the samplerate.
-    pub fn with_rom(buffer: &[u8]) -> Result<Self, CartReadingError> {
-        let cart_res = Cart::from_bytes(buffer);
-        cart_res.and_then(|cart| {
-            Mapper::with_cart(cart).map(|mapper| MemoryBus {
-                mapper,
-                apu: APUState::new(),
-                cpu: CPUState::new(),
-                ppu: PPUState::new(),
-                controller1: Controller::new(),
-                controller2: Controller::new(),
-                ram: [0; 0x2000],
-            })
-        })
+    /// Creates a memory bus from a c
+    pub fn with_cart(cart: Cart) -> Self {
+        let mapper = Mapper::with_cart(cart);
+        MemoryBus {
+            mapper,
+            apu: APUState::new(),
+            cpu: CPUState::new(),
+            ppu: PPUState::new(),
+            controller1: Controller::new(),
+            controller2: Controller::new(),
+            ram: [0; 0x2000],
+        }
     }
 
     /// Clears ram as well as cpu and ppu state
     pub fn reset(&mut self) {
-        self.ram = [0; 0x2000];
+        for byte in self.ram.iter_mut() {
+            *byte = 0;
+        }
         self.cpu = CPUState::new();
         self.ppu = PPUState::new();
     }

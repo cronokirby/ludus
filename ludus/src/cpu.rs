@@ -143,7 +143,7 @@ impl CPUState {
 
 /// Represents possible CPU interrupts
 /// Represents the CPU
-pub struct CPU {
+pub(crate) struct CPU {
     /// Program counter
     pc: u16,
     /// Stack pointer
