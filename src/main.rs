@@ -21,9 +21,9 @@ use std::time::Instant;
 struct WindowDevice(Window);
 
 impl ports::VideoDevice for WindowDevice {
-    fn blit_pixels(&mut self, pixels: &[u32]) {
+    fn blit_pixels(&mut self, pixels: &ports::PixelBuffer) {
         self.0
-            .update_with_buffer(pixels)
+            .update_with_buffer(pixels.as_ref())
             .expect("Couldn't update video device");
     }
 }

@@ -1,8 +1,6 @@
 use super::memory::{Mapper, MemoryBus};
 
-use crate::ports::VideoDevice;
-
-type VBuffer = [u32; 256 * 240];
+use crate::ports::{PixelBuffer, VideoDevice};
 
 const PALETTE: [u32; 64] = [
     0xFF75_7575,
@@ -395,8 +393,8 @@ pub struct PPU {
     cycle: i32,
     scanline: i32,
 
-    // These need to boxed to avoid blowing up the stack
-    v_buffer: Box<VBuffer>,
+    // This need to be boxed to avoid blowing up the stack
+    v_buffer: Box<PixelBuffer>,
 
     // Background temporary variables
     nametable_byte: u8,
@@ -421,7 +419,7 @@ impl PPU {
         let mut ppu = PPU {
             cycle: 0,
             scanline: 0,
-            v_buffer: Box::new([0xFF00_0000; 256 * 240]),
+            v_buffer: Box::new(PixelBuffer::default()),
             nametable_byte: 0,
             attributetable_byte: 0,
             lowtile_byte: 0,
@@ -450,7 +448,7 @@ impl PPU {
     /// Used to clear vbuffers to make image completely neutral
     /// This isn't called in the standard reset.
     pub fn clear_vbuffers(&mut self) {
-        self.v_buffer = Box::new([0xFF00_0000; 256 * 240]);
+        self.v_buffer = Box::new(PixelBuffer::default());
     }
 
     fn fetch_nametable_byte(&mut self, m: &mut MemoryBus) {
@@ -650,8 +648,7 @@ impl PPU {
             color_index &= 0x30;
         }
         let argb = PALETTE[color_index as usize];
-        let pos = (y * 256 + x) as usize;
-        self.v_buffer[pos] = argb;
+        self.v_buffer.write(x as usize, y as usize, argb);
     }
 
     /// Steps the ppu forward
