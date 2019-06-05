@@ -9,9 +9,7 @@ extern crate minifb;
 use ludus::controller::ButtonState;
 use minifb::{Key, Scale, Window, WindowOptions};
 
-use ludus::cart::Cart;
-use ludus::console::Console;
-use ludus::ports;
+use ludus::*;
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -20,7 +18,7 @@ use std::time::Instant;
 
 struct WindowDevice(Window);
 
-impl ports::VideoDevice for WindowDevice {
+impl VideoDevice for WindowDevice {
     fn blit_pixels(&mut self, pixels: &ports::PixelBuffer) {
         self.0
             .update_with_buffer(pixels.as_ref())
@@ -30,7 +28,7 @@ impl ports::VideoDevice for WindowDevice {
 
 struct SenderDevice(Sender<f32>);
 
-impl ports::AudioDevice for SenderDevice {
+impl AudioDevice for SenderDevice {
     fn push_sample(&mut self, sample: f32) {
         self.0.send(sample).expect("Couldn't update audio device");
     }

@@ -12,7 +12,7 @@ pub struct ButtonState {
 
 /// Represents a controller
 #[derive(Default)]
-pub struct Controller {
+pub(crate) struct Controller {
     /// A bitfield of the buttons, in the following order:
     /// A, B, Select, Start, Up, Down, Left, Right
     buttons: [bool; 8],
