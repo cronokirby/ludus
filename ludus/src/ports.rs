@@ -6,9 +6,9 @@ pub trait AudioDevice {
     fn push_sample(&mut self, sample: f32);
 }
 
-/// This represents the width of the display in pixel
+/// This represents the width of the display in pixels
 pub const NES_WIDTH: usize = 256;
-/// This represents the height of the display in pixel
+/// This represents the height of the display in pixels
 pub const NES_HEIGHT: usize = 240;
 const BUFFER_PIXELS: usize = NES_WIDTH * NES_HEIGHT;
 
@@ -23,12 +23,14 @@ const BUFFER_PIXELS: usize = NES_WIDTH * NES_HEIGHT;
 pub struct PixelBuffer([u32; BUFFER_PIXELS]);
 
 impl Default for PixelBuffer {
+    /// This returns a completely transparent buffer of pixels.
     fn default() -> Self {
         PixelBuffer([0; BUFFER_PIXELS])
     }
 }
 
 impl AsRef<[u32]> for PixelBuffer {
+    /// This will return the pixels row by row, in ARGB (big endian) format.
     fn as_ref(&self) -> &[u32] {
         &self.0
     }
@@ -42,6 +44,11 @@ impl PixelBuffer {
 }
 
 /// This represents a video device we can write a pixel buffer to.
+/// 
+/// When implementing this trait, the device should be scaled to a factor
+/// of NES_WIDTH * NES_HEIGHT, and be able to accept a pixel buffer of those
+/// dimensions.
 pub trait VideoDevice {
+    /// Transfer a buffer of pixels onto this device.
     fn blit_pixels(&mut self, pixels: &PixelBuffer);
 }
