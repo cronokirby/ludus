@@ -1,3 +1,6 @@
+[![crates.io](https://img.shields.io/crates/v/ludus.svg)](https://crates.io/crates/ludus)
+[![docs.rs](https://docs.rs/ludus/badge.svg)](https://docs.rs/ludus/)
+
 # ludus
 
 **Ludus** is a crate providing the core logic of an NES emulator. Unlike other
