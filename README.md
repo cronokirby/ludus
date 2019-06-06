@@ -154,3 +154,9 @@ occurred, and is used by most games to handle things like input. So if you've
 advanced halfway through a frame, and then call this method, you'll end up
 halfway through the next, because this method advances for the duration
 of a frame, and not until the next frame occurrs.
+
+## Resources
+
+I relied heavily on this very nicely written open source emulator: https://github.com/fogleman/nes.
+
+This page https://wiki.nesdev.com/w/index.php/NES_reference_guide was and still is my bible as I work on this project; kudos to the many people who've contributed in some way over the years.
