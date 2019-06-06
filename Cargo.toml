@@ -7,3 +7,10 @@ authors = ["Lúcás Meier <cronokirby@gmail.com>"]
 homepage = "https://github.com/cronokirby/ludus"
 repository = "https://github.com/cronokirby/ludus"
 readme = "README.md"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[[bench]]
+name = "console_benchmark"
+harness = false
