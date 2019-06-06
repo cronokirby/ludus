@@ -34,7 +34,7 @@ impl ShiftRegister {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum PRGSwitching {
     /// We switch 32KB banks at a time
     DoubleBank,
@@ -64,6 +64,7 @@ struct PRGBanks {
     bank_1: usize,
     /// This tells us how banks are switched around
     switching: PRGSwitching,
+    control: u8,
 }
 
 impl PRGBanks {
@@ -74,6 +75,7 @@ impl PRGBanks {
             bank_0: 0,
             bank_1: count - 1,
             switching: PRGSwitching::Fix1,
+            control: 0,
         }
     }
 
@@ -91,10 +93,16 @@ impl PRGBanks {
     }
 
     fn set_switching<S: Into<PRGSwitching>>(&mut self, switching: S) {
-        self.switching = switching.into();
+        let into = switching.into();
+        if self.switching != into {
+            self.switching = into;
+            let control = self.control;
+            self.write(control);
+        }
     }
 
     fn write(&mut self, control: u8) {
+        self.control = control;
         match self.switching {
             PRGSwitching::Fix0 => {
                 let bank = (control & 0xF) % self.count;
@@ -108,7 +116,7 @@ impl PRGBanks {
                 let select = (control & 0xF) >> 1;
                 let bank = select % (self.count / 2);
                 self.bank_0 = bank as usize;
-                self.bank_1 = (bank + 1) as usize;
+                self.bank_1 = (bank | 1) as usize;
             }
         }
     }
@@ -134,6 +142,8 @@ struct CHRBanks {
     bank_0: usize,
     bank_1: usize,
     switching: CHRSwitching,
+    lower_control: u8,
+    upper_control: u8,
 }
 
 impl CHRBanks {
@@ -144,6 +154,8 @@ impl CHRBanks {
             bank_0: 0,
             bank_1: count - 1,
             switching: CHRSwitching::Single,
+            lower_control: 0,
+            upper_control: 0,
         }
     }
 
@@ -161,10 +173,18 @@ impl CHRBanks {
     }
 
     fn set_switching<S: Into<CHRSwitching>>(&mut self, switching: S) {
-        self.switching = switching.into();
+        let into = switching.into();
+        if self.switching != into {
+            self.switching = into;
+            let lower = self.lower_control;
+            let upper = self.upper_control;
+            self.write_lower(lower);
+            self.write_upper(upper);
+        }
     }
 
     fn write_lower(&mut self, control: u8) {
+        self.lower_control = control;
         if self.switching == CHRSwitching::Double {
             let select = (control & 0x1F) >> 1;
             let bank = select % (self.count / 2);
@@ -177,6 +197,7 @@ impl CHRBanks {
     }
 
     fn write_upper(&mut self, control: u8) {
+        self.upper_control = control;
         if self.switching == CHRSwitching::Double {
             return;
         }
