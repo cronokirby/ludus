@@ -21,14 +21,14 @@ in your own emulator application in whatever way you want.
 
 ## Usage
 Let's first import the main types used in **Ludus**:
-```rs
+```rust
 use ludus::*;
 ```
 
 The main emulator type is `Console`. Before we can create a `Console`, we need
 a cartridge to play. We can create a `Cart` type by reading an `.ines` file.
 
-```rs
+```rust
 let bytes: &[u8] = read_ines_bytes();
 let cart = Cart::from_bytes(bytes).unwrap();
 ```
@@ -36,7 +36,7 @@ let cart = Cart::from_bytes(bytes).unwrap();
 Creating a cartridge will naturally fail if the ROM data wasn't valid.
 
 Once we have a cartridge, we can create a console to play this cartridge:
-```rs
+```rust
 let console = Console::new(cart, sample_rate);
 ```
 
@@ -45,12 +45,12 @@ process unit (APU). Normally, if you're using some crate that allows you to play
 audio to a device, you should have access to this sample_rate.
 
 At any point in time we can reset the console like so:
-```rs
+```rust
 console.reset();
 ```
 
 We can also update the state of the buttons using the `ButtonState` struct:
-```rs
+```rust
 let mut buttons = ButtonState::default();
 buttons.a = true;
 console.update_controller(buttons);
@@ -62,7 +62,7 @@ the PPU might generate video frames. To handle these, we need to provide a devic
 that can handle the audio samples, and a device to handle the video frames.
 
 For handling audio, we have the `AudioDevice` trait:
-```rs
+```rust
 trait AudioDevice {
     fn push_sample(&mut self, sample: f32)
 }
@@ -73,7 +73,7 @@ passed to the console determines how often the APU will generate samples and pus
 them to this device.
 
 For handling video, we have the `VideoDevice` trait:
-```rs
+```rust
 trait VideoDevice {
     fn blit_pixels(&mut self, pixels: &PixelBuffer)
 }
@@ -85,7 +85,7 @@ The pixelbuffer contains 256x240 ARGB pixels, in row major format.
 If you don't want to handle audio or video, you can simple create an empty struct
 that does nothing for both traits:
 
-```rs
+```rust
 #[derive(Clone, Copy)]
 pub struct NullDevice;
 
@@ -103,7 +103,7 @@ impl VideoDevice for NullDevice {
 Now that we have the devices set up, we can start doing some emulation.
 
 The simplest method to advance the console is `step`:
-```rs
+```rust
 pub fn step<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) -> i32 where
     A: AudioDevice,
     V: VideoDevice,
@@ -114,7 +114,7 @@ something automated, like a bot, you want to use `step_frame` instead, since
 most games won't even look at input more than once per frame anyways.
 
 The next method is `step_micros`:
-```rs
+```rust
 pub fn step_micros<'a, A, V>(
     &'a mut self,
     audio: &mut A,
@@ -130,7 +130,7 @@ This is the most useful method if you're implementing your own GUI and want
 to advance the emulator in some kind of game loop.
 
 An example of doing such a loop might look like this:
-```rs
+```rust
 let mut old = Instant::now();
 loop {
     let now = Instant::now();
@@ -141,7 +141,7 @@ loop {
 ```
 
 The final method allows you to advance the emulator by a full frame:
-```rs
+```rust
 pub fn step_frame<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) where
     A: AudioDevice,
     V: VideoDevice,
