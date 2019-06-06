@@ -10,8 +10,14 @@ pub enum CartReadingError {
 /// Represents the type of mirroring present on a cartridge
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Mirroring {
+    /// Tables start wrapping horizontally
     Horizontal,
+    /// Tables start wrapping vertically
     Vertical,
+    /// Every mirror points to the first table
+    SingleLower,
+    /// Every mirror points to the second table
+    SingleUpper,
 }
 
 impl From<bool> for Mirroring {
@@ -43,6 +49,8 @@ impl Mirroring {
             (Mirroring::Vertical, 1) => 1,
             (Mirroring::Vertical, 2) => 0,
             (Mirroring::Vertical, 3) => 1,
+            (Mirroring::SingleLower, _) => 0,
+            (Mirroring::SingleUpper, _) => 1,
             _ => 0,
         };
         0x2000 + table * 0x400 + (address % 0x400)
