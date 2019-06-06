@@ -819,16 +819,4 @@ impl CPU {
         }
         cycles
     }
-
-    /// Prints the current state of the CPU
-    pub fn print_state(&self) {
-        println!(
-            "A: {:X} X: {:X} Y: {:X} F: {:X} SP: {:X}",
-            self.a,
-            self.x,
-            self.y,
-            self.get_flags(),
-            self.sp
-        );
-    }
 }
