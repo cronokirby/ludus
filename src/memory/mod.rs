@@ -1,3 +1,4 @@
+mod mapper1;
 mod mapper2;
 
 use super::apu::APUState;
@@ -18,6 +19,7 @@ impl Mapper {
     /// Returns an error if the mapper is unkown
     pub fn with_cart(cart: Cart) -> Box<Mapper> {
         match cart.mapper {
+            MapperID::M1 => Box::new(mapper1::Mapper1::new(cart)),
             MapperID::M2 => Box::new(mapper2::Mapper2::new(cart)),
         }
     }

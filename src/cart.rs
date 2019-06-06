@@ -20,13 +20,14 @@ pub enum Mirroring {
     SingleUpper,
 }
 
-impl From<bool> for Mirroring {
+impl From<u8> for Mirroring {
     /// Create a mirroring from a boolean, with true representing vertical
-    fn from(is_vertical: bool) -> Self {
-        if is_vertical {
-            Mirroring::Vertical
-        } else {
-            Mirroring::Horizontal
+    fn from(mirroring: u8) -> Self {
+        match mirroring {
+            0 => Mirroring::SingleLower,
+            1 => Mirroring::SingleUpper,
+            2 => Mirroring::Vertical,
+            _ => Mirroring::Horizontal,
         }
     }
 }
@@ -65,6 +66,8 @@ impl Mirroring {
 pub enum MapperID {
     /// The mapper used for 0x0 and 0x2
     M2,
+    /// iNES mapper 0x1
+    M1,
 }
 
 impl TryFrom<u8> for MapperID {
@@ -73,6 +76,7 @@ impl TryFrom<u8> for MapperID {
     fn try_from(byte: u8) -> Result<Self, Self::Error> {
         match byte {
             0 => Ok(MapperID::M2),
+            1 => Ok(MapperID::M1),
             2 => Ok(MapperID::M2),
             _ => Err(CartReadingError::UnknownMapper(byte)),
         }
@@ -119,12 +123,17 @@ impl Cart {
         let prg_end = prg_start + 0x4000 * prg_chunks;
         let chr_end = prg_end + 0x2000 * chr_chunks;
         let mapper = MapperID::try_from((flag6 >> 4) | (flag7 & 0xF0))?;
+        let mirroring = if flag6 & 1 != 0 {
+            Mirroring::Vertical
+        } else {
+            Mirroring::Horizontal
+        };
         Ok(Cart {
             prg: buffer[prg_start..prg_end].to_vec(),
             chr: buffer[prg_end..chr_end].to_vec(),
             mapper,
             sram: [0; 0x2000],
-            mirroring: Mirroring::from(flag6 & 1 != 0),
+            mirroring,
             has_battery: flag6 & 0b10 > 0,
         })
     }
