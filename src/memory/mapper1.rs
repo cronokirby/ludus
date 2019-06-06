@@ -113,10 +113,9 @@ impl PRGBanks {
                 self.bank_0 = bank as usize;
             }
             PRGSwitching::DoubleBank => {
-                let select = (control & 0xF) >> 1;
-                let bank = select % (self.count / 2);
-                self.bank_0 = bank as usize;
-                self.bank_1 = (bank | 1) as usize;
+                let bank_0 = (control & 0xE) % self.count;
+                self.bank_0 = bank_0 as usize;
+                self.bank_1 = (bank_0 + 1) as usize;
             }
         }
     }
@@ -186,10 +185,9 @@ impl CHRBanks {
     fn write_lower(&mut self, control: u8) {
         self.lower_control = control;
         if self.switching == CHRSwitching::Double {
-            let select = (control & 0x1F) >> 1;
-            let bank = select % (self.count / 2);
-            self.bank_0 = bank as usize;
-            self.bank_1 = bank as usize;
+            let bank_0 = (control & 0x1E) % self.count;
+            self.bank_0 = bank_0 as usize;
+            self.bank_1 = (bank_0 + 1) as usize;
         } else {
             let bank = (control & 0x1F) % self.count;
             self.bank_0 = bank as usize;
