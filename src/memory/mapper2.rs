@@ -1,9 +1,9 @@
-use super::super::cart::{Cart, Mirroring};
-use super::Mapper;
+use crate::cart::{Cart, Mirroring};
+use crate::memory::Mapper;
 
 pub struct Mapper2 {
     cart: Cart,
-    prg_banks: i32,
+    prg_banks: u8,
     prgbank1: usize,
     prgbank2: usize,
 }
@@ -15,7 +15,7 @@ impl Mapper2 {
         let prgbank2 = prg_banks - 1;
         Mapper2 {
             cart,
-            prg_banks: prg_banks as i32,
+            prg_banks: prg_banks as u8,
             prgbank1,
             prgbank2,
         }
@@ -54,7 +54,7 @@ impl Mapper for Mapper2 {
         match address {
             a if a < 0x2000 => self.cart.chr[a as usize] = value,
             a if a >= 0x8000 => {
-                let bank = i32::from(value) % self.prg_banks;
+                let bank = value % self.prg_banks;
                 self.prgbank1 = bank as usize;
             }
             a if a >= 0x6000 => {
