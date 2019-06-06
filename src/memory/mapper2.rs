@@ -47,7 +47,7 @@ impl Mapper for Mapper2 {
     }
 
     fn mirroring_mode(&self) -> Mirroring {
-        self.cart.mirroring.clone()
+        self.cart.mirroring
     }
 
     fn write(&mut self, address: u16, value: u8) {

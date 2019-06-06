@@ -27,12 +27,12 @@ impl From<bool> for Mirroring {
 
 impl Mirroring {
     /// Returns true if mirroring is Vertical
-    pub fn is_vertical(&self) -> bool {
-        *self == Mirroring::Vertical
+    pub fn is_vertical(self) -> bool {
+        self == Mirroring::Vertical
     }
 
     /// Mirrors an address >= 0x2000
-    pub(crate) fn mirror_address(&self, address: u16) -> u16 {
+    pub(crate) fn mirror_address(self, address: u16) -> u16 {
         let address = (address - 0x2000) % 0x1000;
         let table = match (self, address / 0x400) {
             (Mirroring::Horizontal, 0) => 0,
