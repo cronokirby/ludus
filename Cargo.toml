@@ -1,12 +1,6 @@
 [package]
-name = "ludus-emu"
-version = "0.1.0"
+name = "ludus"
+version = "0.2.0"
+description = "headless NES emulator crate"
+license = "MIT"
 authors = ["Lúcás Meier <cronokirby@gmail.com>"]
-
-[workspace]
-
-[dependencies]
-argparse = "0.2.2"
-cpal = "0.8.2"
-ludus = { path = "ludus" }
-minifb = "0.10"
