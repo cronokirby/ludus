@@ -20,7 +20,7 @@ in your own emulator application in whatever way you want.
 - Video emulation
 - Audio emulation
 - Parsing rom data from `.ines` files.
-- Mappers 0 and 2, so many common games.
+- Mappers 0, 1, and 2, so many common games.
 
 ## Usage
 Let's first import the main types used in **Ludus**:
