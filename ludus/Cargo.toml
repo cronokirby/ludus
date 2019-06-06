@@ -1,6 +1,6 @@
 [package]
 name = "ludus"
-version = "0.1.0"
+version = "0.2.0"
 description = "headless NES emulator crate"
 license = "MIT"
 authors = ["Lúcás Meier <cronokirby@gmail.com>"]

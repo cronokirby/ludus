@@ -6,7 +6,6 @@ use argparse::{ArgumentParser, Store};
 extern crate cpal;
 extern crate minifb;
 
-use ludus::controller::ButtonState;
 use minifb::{Key, Scale, Window, WindowOptions};
 
 use ludus::*;
