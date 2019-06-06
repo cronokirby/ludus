@@ -22,7 +22,7 @@ impl ShiftRegister {
     // This returns Some if the shifting is done, and we have a final value
     fn shift(&mut self, value: u8) -> Option<u8> {
         self.register >>= 1;
-        self.register |= (value & 1) << 5;
+        self.register |= (value & 1) << 4;
         self.count += 1;
         if self.count == 5 {
             let ret = self.register;
@@ -148,15 +148,16 @@ impl CHRBanks {
     }
 
     fn index(&self, address: u16) -> usize {
-        if address >= 0x2000 {
-            let shift = (address - 0x2000) as usize;
-            self.bank_1 * CHR_BANK_SIZE + shift
-        } else if address >= 0x1000 {
-            let shift = (address - 0x1000) as usize;
+        let index = if address < 0x1000 {
+            let shift = address as usize;
             self.bank_0 * CHR_BANK_SIZE + shift
+        } else if address < 0x2000 {
+            let shift = (address - 0x1000) as usize;
+            self.bank_1 * CHR_BANK_SIZE + shift
         } else {
             unreachable!("Address out of CHR bounds: {:X}", address);
-        }
+        };
+        index
     }
 
     fn set_switching<S: Into<CHRSwitching>>(&mut self, switching: S) {
@@ -237,7 +238,7 @@ impl Mapper1 {
 
 impl Mapper for Mapper1 {
     fn read(&self, address: u16) -> u8 {
-        println!("M1 read {:X}", address);
+        //println!("M1 read {:X}", address);
         if address < 0x2000 {
             self.cart.chr[self.chr.index(address)]
         } else if address >= 0x8000 {
@@ -255,8 +256,11 @@ impl Mapper for Mapper1 {
     }
 
     fn write(&mut self, address: u16, value: u8) {
-        println!("M1 write {:X} value: {:X}", address, value);
-        if address >= 0x8000 {
+        //println!("M1 write {:X} value: {:X}", address, value);
+        if address < 0x2000 {
+            //println!("{:X}", self.cart.prg.len());
+            self.cart.chr[self.chr.index(address)] = value;
+        } else if address >= 0x8000 {
             if value & 0x80 != 0 {
                 self.shift_register = ShiftRegister::default();
                 self.write_control(0xC);
@@ -267,7 +271,7 @@ impl Mapper for Mapper1 {
             let shift = address - 0x6000;
             self.cart.sram[shift as usize] = value;
         } else {
-            panic!("Mapper1 unhandled read at {:X}", address);
+            panic!("Mapper1 unhandled write at {:X}", address);
         }
     }
 }

@@ -128,9 +128,14 @@ impl Cart {
         } else {
             Mirroring::Horizontal
         };
+        let chr = if chr_chunks == 0 {
+            vec![0; 0x2000]
+        } else {
+            buffer[prg_end..chr_end].to_vec()
+        };
         Ok(Cart {
             prg: buffer[prg_start..prg_end].to_vec(),
-            chr: buffer[prg_end..chr_end].to_vec(),
+            chr,
             mapper,
             sram: [0; 0x2000],
             mirroring,
