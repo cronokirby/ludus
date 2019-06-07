@@ -27,6 +27,10 @@ impl Console {
         }
     }
 
+    /// Advance the console by a single CPU cycle.
+    /// 
+    /// This needs access to the audio and video devices, because the APU
+    /// may generate audio samples, and the PPU may generate a frame.
     pub fn step<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) -> i32
     where
         A: AudioDevice,
@@ -43,6 +47,7 @@ impl Console {
         cpucycles
     }
 
+    /// Advance the console by a certain number of micro seconds.
     pub fn step_micros<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V, micros: u32)
     where
         A: AudioDevice,
@@ -55,12 +60,29 @@ impl Console {
         }
     }
 
+    /// Advance the console until the next frame.
+    /// 
+    /// Unlike the other step methods, this is not based on timing, but
+    /// based on waiting until the ppu actually generates a video frame.
+    /// This is more useful for applications that want to do something
+    /// at the start of every frame, like playing the next frame of input
+    /// from a recorded script, or things like that.
     pub fn step_frame<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V)
     where
         A: AudioDevice,
         V: VideoDevice,
     {
-        self.step_micros(audio, video, 1_000_000 / 60);
+        let mut frame_happened = false;
+        while !frame_happened {
+            let cpucycles = self.cpu.step();
+            let m = &mut self.cpu.mem;
+            for _ in 0..cpucycles * 3 {
+                frame_happened = self.ppu.step(m, video) || frame_happened;
+            }
+            for _ in 0..cpucycles {
+                self.apu.step(m, audio);
+            }
+        }
     }
 
     pub fn update_controller(&mut self, buttons: ButtonState) {

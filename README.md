@@ -151,12 +151,8 @@ pub fn step_frame<'a, A, V>(&'a mut self, audio: &mut A, video: &mut V) where
 ```
 This is useful if you're training a bot, because games will only look at input
 once per frame. So you'd set input for that frame, then advance once frame, then
-set input, etc. Note that this is based on *timing* and not on waiting for the PPU
-to send a VBlank interrupt to the CPU, which tells the CPU that a frame has
-occurred, and is used by most games to handle things like input. So if you've
-advanced halfway through a frame, and then call this method, you'll end up
-halfway through the next, because this method advances for the duration
-of a frame, and not until the next frame occurrs.
+set input, etc. Note that this is not based on *timing* like the other methods,
+but by waiting for the ppu to reach the end of the current frame.
 
 ## Resources
 

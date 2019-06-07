@@ -652,7 +652,7 @@ impl PPU {
     }
 
     /// Steps the ppu forward
-    pub fn step(&mut self, m: &mut MemoryBus, video: &mut impl VideoDevice) {
+    pub fn step(&mut self, m: &mut MemoryBus, video: &mut impl VideoDevice) -> bool {
         self.tick(m);
         let rendering = m.ppu.flg_showbg != 0 || m.ppu.flg_showsprites != 0;
         let preline = self.scanline == 261;
@@ -703,15 +703,18 @@ impl PPU {
             }
         }
 
+        let mut frame_happened = false;
         // Vblank logic
         if self.scanline == 241 && self.cycle == 1 {
             self.set_vblank(m, video);
+            frame_happened = true;
         }
         if preline && self.cycle == 1 {
             self.clear_vblank(m);
             m.ppu.flg_sprite0hit = 0;
             m.ppu.flg_spriteoverflow = 0;
         }
+        frame_happened
     }
 
     fn tick(&mut self, m: &mut MemoryBus) {
