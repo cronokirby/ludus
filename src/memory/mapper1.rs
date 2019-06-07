@@ -123,7 +123,9 @@ impl PRGBanks {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum CHRSwitching {
+    /// Switch a single bank at a time
     Single,
+    /// Switch both banks at a time
     Double,
 }
 
@@ -257,7 +259,6 @@ impl Mapper1 {
 
 impl Mapper for Mapper1 {
     fn read(&self, address: u16) -> u8 {
-        //println!("M1 read {:X}", address);
         if address < 0x2000 {
             self.cart.chr[self.chr.index(address)]
         } else if address >= 0x8000 {
@@ -275,9 +276,7 @@ impl Mapper for Mapper1 {
     }
 
     fn write(&mut self, address: u16, value: u8) {
-        //println!("M1 write {:X} value: {:X}", address, value);
         if address < 0x2000 {
-            //println!("{:X}", self.cart.prg.len());
             self.cart.chr[self.chr.index(address)] = value;
         } else if address >= 0x8000 {
             if value & 0x80 != 0 {
